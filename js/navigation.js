@@ -25,6 +25,7 @@ const ROUTES = {
 // Current navigation state
 let currentRoute = null;
 let navigationInitialized = false;
+let lastProcessedHash = '';
 
 // Initialize hash-based navigation
 function initializeNavigation() {
