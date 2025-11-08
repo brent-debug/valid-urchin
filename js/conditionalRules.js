@@ -723,8 +723,6 @@ function backToConditionalRules() {
 // Export functions to global scope
 window.renderConditionalRulesTable = renderConditionalRulesTable;
 window.initializeRuleEditor = initializeRuleEditor;
-window.initializeRuleEditorDirect = initializeRuleEditorDirect;
-window.editExistingRuleDirect = editExistingRuleDirect;
 window.showCreateNewRule = showCreateNewRule;
 window.toggleRuleStatus = toggleRuleStatus;
 window.deleteConditionalRule = deleteConditionalRule;
@@ -744,6 +742,5 @@ window.hideAddRuleValueInput = hideAddRuleValueInput;
 window.handleRuleConditionalValueEnter = handleRuleConditionalValueEnter;
 window.addNewRuleConditionalValue = addNewRuleConditionalValue;
 window.backToConditionalRules = backToConditionalRules;
-window.backToConditionalRulesDirect = backToConditionalRulesDirect;
 
 console.log('Conditional rules module loaded and functions exported globally');
