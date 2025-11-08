@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ValidUrchin - UTM Parameter Validation</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-firestore-compat.min.js"></script>
+  </head>
+  <body>
+    <header class="header">
+      <div class="header-content">
+        <div class="logo-section">
+          <img src="https://brentlevi.me/assets/validurchin.png" alt="ValidUrchin" class="logo">
+        </div>
+        <input type="text" id="apiKey" class="api-key-input" placeholder="Organization API Key" value="99c3140e-9e5d-4e03-834e-9842b803673f">
+      </div>
+    </header>
+    
+    <nav class="nav-container">
+      <div class="nav-content">
+        <div class="nav-tabs">
+          <button class="nav-tab" onclick="showPage('dashboard')">Dashboard</button>
+          <button class="nav-tab active" onclick="showPage('monitor-settings')">Monitor Settings</button>
+          <button class="nav-tab" onclick="showPage('conflict-log')">Conflict Log</button>
+          <button class="nav-tab" onclick="showPage('campaign-manager')">Campaign Manager</button>
+          <button class="nav-tab" onclick="showPage('admin')">Admin</button>
+        </div>
+      </div>
+    </nav>
+    
+    <main class="main-container">
+      <!-- Dashboard Page -->
+      <div id="dashboard" class="page">
+        <div class="page-header">
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-description">Overview of your UTM validation activity</p>
+        </div>
+        <div class="placeholder">
+          <h3>Dashboard Coming Soon</h3>
+          <p>This will show an overview of conflicts, validation statistics, and recent activity.</p>
+        </div>
+      </div>
+
+      <!-- Monitor Settings Page with Sub Tabs -->
+      <div id="monitor-settings" class="page active">
+        <div class="page-header">
+          <div class="page-header-content">
+            <div class="page-header-left">
+              <h1 class="page-title">Monitor Settings</h1>
+              <p class="page-description">Configure UTM parameter monitoring and validation rules</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Sub Navigation -->
+        <div class="sub-nav-container">
+          <div class="sub-nav-tabs">
+            <button class="sub-nav-tab active" onclick="showSubTab('monitored-parameters')">Monitored Parameters</button>
+            <button class="sub-nav-tab" onclick="showSubTab('conditional-rules')">Conditional Rules</button>
+            <button class="sub-nav-tab" onclick="showSubTab('bulk-operations')">Bulk Operations</button>
+          </div>
+        </div>
+        
+        <!-- Sub Tab Content -->
+        <div class="sub-tab-content">
+          <!-- Monitored Parameters Tab -->
+          <div id="monitored-parameters" class="sub-tab-pane active">
+            <div class="sub-tab-header">
+              <h2 class="sub-tab-title">Monitored Parameters</h2>
+              <button class="btn btn-primary" onclick="showCreateParameterDialog()">+ Add Parameter</button>
+            </div>
+            <div class="parameters-grid" id="parametersGrid">
+              <!-- Parameters will be populated by JavaScript -->
+            </div>
+          </div>
+          
+          <!-- Conditional Rules Tab -->
+          <div id="conditional-rules" class="sub-tab-pane">
+            <div class="sub-tab-header">
+              <h2 class="sub-tab-title">Conditional Rules</h2>
+              <button class="btn btn-primary" onclick="showCreateNewRule()">+ Create New Rule</button>
+            </div>
+            <div id="conditionalRulesTableContainer">
+              <!-- Conditional rules table will be populated by JavaScript -->
+            </div>
+          </div>
+          
+          <!-- Bulk Operations Tab -->
+          <div id="bulk-operations" class="sub-tab-pane">
+            <div class="sub-tab-header">
+              <h2 class="sub-tab-title">Bulk Operations</h2>
+            </div>
+            <div class="empty-state">
+              <h3>Bulk Operations Coming Soon</h3>
+              <p>This will allow you to perform bulk actions on parameters and rules.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parameter Editor Page -->
+      <div id="parameter-editor" class="page">
+        <div class="parameter-editor-header">
+          <div class="back-button-container">
+            <button class="btn btn-secondary" onclick="backToMonitorSettings()">← Back to Monitor Settings</button>
+          </div>
+          <div class="parameter-editor-title">
+            <h1>Parameter Settings</h1>
+            <span class="current-parameter" id="currentParameterName"></span>
+          </div>
+        </div>
+        
+        <div class="parameter-editor-layout">
+          <div class="left-panel">
+            <div class="card">
+              <h2 class="card-title">Settings &amp; Configuration</h2>
+              <div class="setting-group">
+                <label class="setting-label">Status</label>
+                <div class="status-display-section">
+                  <span class="status-badge" id="currentStatusBadge"></span>
+                  <div class="status-actions" id="statusActions"></div>
+                </div>
+              </div>
+              <div class="setting-group">
+                <label class="setting-label">Case Sensitivity</label>
+                <div class="case-sensitivity-section">
+                  <span class="case-sensitivity-display" id="currentCaseSensitivity"></span>
+                  <button class="btn btn-secondary btn-small" onclick="showCaseSensitivityEdit()">Edit</button>
+                  <div class="case-sensitivity-edit" id="caseSensitivityEdit" style="display: none;">
+                    <select class="setting-input" id="caseSensitivity">
+                      <option value="">No restriction</option>
+                      <option value="lowercase">Must be lowercase</option>
+                      <option value="uppercase">Must be uppercase</option>
+                    </select>
+                    <button class="btn btn-primary btn-small" onclick="saveCaseSensitivity()">Save</button>
+                    <button class="btn btn-secondary btn-small" onclick="cancelCaseSensitivityEdit()">Cancel</button>
+                  </div>
+                </div>
+              </div>
+              <div class="setting-group">
+                <button class="btn btn-danger" onclick="showDeleteParameterDialog()">Delete Parameter</button>
+              </div>
+            </div>
+            <div class="card">
+              <h2 class="card-title">User Permissions</h2>
+              <div class="setting-group">
+                <label class="setting-label">Update Settings &amp; Configuration</label>
+                <div class="placeholder-text">User role permissions (coming soon)</div>
+              </div>
+              <div class="setting-group">
+                <label class="setting-label">Add Values</label>
+                <div class="placeholder-text">User role permissions (coming soon)</div>
+              </div>
+              <div class="setting-group">
+                <label class="setting-label">Remove Values</label>
+                <div class="placeholder-text">User role permissions (coming soon)</div>
+              </div>
+            </div>
+            <div class="card">
+              <h2 class="card-title">Change Log</h2>
+              <div class="setting-group">
+                <label class="setting-label">Created Date</label>
+                <div class="readonly-value" id="createdDate"></div>
+              </div>
+              <div class="setting-group">
+                <label class="setting-label">Last Updated Date</label>
+                <div class="readonly-value" id="lastUpdatedDate"></div>
+              </div>
+              <div class="setting-group">
+                <label class="setting-label">Recent Changes</label>
+                <div class="placeholder-text">Change history (coming soon)</div>
+              </div>
+            </div>
+          </div>
+          <div class="right-panel">
+            <div class="card">
+              <h2 class="card-title">Allowed Values</h2>
+              <div id="allowedValuesDisplay"></div>
+              <button class="btn btn-primary" onclick="showAddValueInterface()" id="addValueBtn">+ Add Value</button>
+              <div id="addValueInterface" style="display: none;">
+                <div class="add-value-input">
+                  <input type="text" class="value-input" placeholder="Type a value and press Enter" 
+                    onkeypress="handleAddValueNew(event)" id="newValueInput">
+                  <button class="btn btn-primary btn-small" onclick="addNewValue()">Add</button>
+                  <button class="btn btn-secondary btn-small" onclick="hideAddValueInterface()">Cancel</button>
+                </div>
+              </div>
+              <div class="conditional-monitoring-box" onclick="showSubTab('conditional-rules')">
+                <div class="conditional-box-content">
+                  <span class="conditional-icon">⚙️</span>
+                  <div class="conditional-text">
+                    <div class="conditional-title">Conditional Monitoring</div>
+                    <div class="conditional-subtitle">Set rules based on conditions</div>
+                  </div>
+                  <span class="conditional-arrow">→</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conditional Rule Editor Page -->
+      <div id="conditional-rule-editor" class="page">
+        <div class="parameter-editor-header">
+          <div class="back-button-container">
+            <button class="btn btn-secondary" onclick="backToConditionalRules()">← Back to Conditional Rules</button>
+          </div>
+          <div class="parameter-editor-title">
+            <h1 id="ruleEditorTitle">Create New Conditional Rule</h1>
+            <span class="current-parameter" id="currentRuleName" style="display: none;"></span>
+          </div>
+        </div>
+        
+        <div class="parameter-editor-layout">
+          <div class="left-panel">
+            <!-- Anchor Configuration -->
+            <div class="card">
+              <h2 class="card-title">Anchor Configuration</h2>
+              <p style="color: var(--gray-600); margin-bottom: 1.5rem;">Choose the primary parameter that will trigger conditional validation</p>
+              
+              <div class="setting-group">
+                <label class="setting-label">Anchor Parameter</label>
+                <select class="setting-input" id="ruleAnchorParameter" onchange="onRuleAnchorParameterSelect()">
+                  <option value="">-- Select Parameter --</option>
+                </select>
+              </div>
+              
+              <div class="setting-group" id="ruleAnchorValueGroup" style="display: none;">
+                <label class="setting-label">Trigger Value</label>
+                <select class="setting-input" id="ruleAnchorValue" onchange="onRuleAnchorValueSelect()">
+                  <option value="">-- Select Value --</option>
+                </select>
+              </div>
+            </div>
+            
+            <!-- Rule Summary -->
+            <div class="card" id="ruleSummaryCard" style="display: none;">
+              <h2 class="card-title">Rule Summary</h2>
+              <div id="ruleSummaryContent">
+                <!-- Summary will be generated here -->
+              </div>
+              <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button class="btn btn-primary" onclick="saveConditionalRule()" id="saveRuleBtn">Create Rule</button>
+                <button class="btn btn-secondary" onclick="resetRuleForm()">Reset</button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="right-panel">
+            <!-- Conditional Parameters -->
+            <div class="card" id="conditionalParametersCard" style="display: none;">
+              <h2 class="card-title">Conditional Parameters</h2>
+              <p style="color: var(--gray-600); margin-bottom: 1.5rem;">Define which parameters should have conditional validation when the anchor matches</p>
+              
+              <div id="ruleConditionalsList">
+                <!-- Conditional parameters will be added here -->
+              </div>
+              
+              <button class="btn btn-primary" onclick="showAddConditionalParameterSection()" id="addConditionalBtn">+ Add Conditional Parameter</button>
+              
+              <!-- Add Conditional Parameter Section -->
+              <div id="addConditionalSection" style="display: none; margin-top: 2rem; padding-top: 2rem; border-top: 2px dashed var(--gray-300);">
+                <h3 style="margin-bottom: 1rem;">Add Conditional Parameter</h3>
+                
+                <div class="setting-group">
+                  <label class="setting-label">Parameter</label>
+                  <select class="setting-input" id="ruleConditionalParameter" onchange="onRuleConditionalParameterSelect()">
+                    <option value="">-- Select Parameter --</option>
+                  </select>
+                </div>
+                
+                <div class="setting-group" id="ruleConditionalValuesGroup" style="display: none;">
+                  <label class="setting-label">Select Allowed Values</label>
+                  <div class="values-section">
+                    <div class="values-search-header">
+                      <input type="text" id="ruleValuesSearchInput" class="values-search-input" 
+                        placeholder="Search existing values..." oninput="filterRuleConditionalValues()">
+                    </div>
+                    <div class="conditional-values-container">
+                      <div class="existing-values" id="existingRuleConditionalValues">
+                        <!-- Existing values will be shown here -->
+                      </div>
+                    </div>
+                  </div>
+                  <div class="add-new-value-section" id="addNewRuleValueContainer" style="display: none;">
+                    <div class="add-value-form">
+                      <input type="text" id="newRuleConditionalValue" class="add-value-input" 
+                        placeholder="Enter new value" onkeypress="handleRuleConditionalValueEnter(event)">
+                      <div class="add-value-buttons">
+                        <button class="btn btn-primary btn-small" onclick="addNewRuleConditionalValue()">Add</button>
+                        <button class="btn btn-secondary btn-small" onclick="hideAddRuleValueInput()">Cancel</button>
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-small add-new-value-trigger" id="showAddRuleValueBtn" 
+                    onclick="showAddRuleValueInput()">+ Add New Value</button>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                  <button class="btn btn-primary" onclick="addRuleConditionalParameter()">Add Parameter</button>
+                  <button class="btn btn-secondary" onclick="hideAddConditionalParameterSection()">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conflict Log Page - Redesigned -->
+      <div id="conflict-log" class="page">
+        <div class="page-header">
+          <h1 class="page-title">Conflict Log</h1>
+          <p class="page-description">Review and resolve UTM parameter validation violations</p>
+        </div>
+        
+        <!-- Statistics Dashboard -->
+        <div id="conflictStatsBar" class="stats-bar">
+          <!-- Stats will be populated by JavaScript -->
+        </div>
+        
+        <!-- Enhanced Filters Section -->
+        <div class="card">
+          <h2 class="card-title">Filters & Search</h2>
+          
+          <!-- Search and Primary Filters -->
+          <div class="conflict-filters">
+            <div class="filter-row">
+              <div class="filter-group search-group">
+                <label for="conflictSearchInput" class="filter-label">Search</label>
+                <input type="text" 
+                       id="conflictSearchInput" 
+                       class="filter-input" 
+                       placeholder="Search URLs, parameters, or values...">
+              </div>
+              
+              <div class="filter-group">
+                <label for="violationTypeFilter" class="filter-label">Violation Type</label>
+                <select id="violationTypeFilter" class="filter-select">
+                  <option value="all">All Types</option>
+                  <option value="VALUE_NOT_ALLOWED">Value Not Allowed</option>
+                  <option value="CASE_SENSITIVITY">Case Sensitivity</option>
+                  <option value="CONDITIONAL_VIOLATION">Conditional</option>
+                </select>
+              </div>
+              
+              <div class="filter-group">
+                <label for="timeRangeFilter" class="filter-label">Time Range</label>
+                <select id="timeRangeFilter" class="filter-select">
+                  <option value="all">All Time</option>
+                  <option value="last24h">Last 24 Hours</option>
+                  <option value="last7d">Last 7 Days</option>
+                  <option value="last30d">Last 30 Days</option>
+                </select>
+              </div>
+              
+              <div class="filter-group">
+                <label for="statusFilter" class="filter-label">Status</label>
+                <select id="statusFilter" class="filter-select">
+                  <option value="all">All Status</option>
+                  <option value="unresolved">Unresolved Only</option>
+                  <option value="resolved">Resolved Only</option>
+                </select>
+              </div>
+              
+              <div class="filter-actions">
+                <button class="btn btn-secondary btn-small" onclick="refreshConflicts()">Refresh</button>
+                <button class="btn btn-secondary btn-small" onclick="clearAllFilters()">Clear All</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quick Filter Presets -->
+          <div class="quick-filters">
+            <span class="quick-filters-label">Quick filters:</span>
+            <button class="quick-filter-btn" onclick="applyQuickFilter('unresolved')">Unresolved Only</button>
+            <button class="quick-filter-btn" onclick="applyQuickFilter('last24h')">Last 24 Hours</button>
+            <button class="quick-filter-btn" onclick="applyQuickFilter('highPriority')">High Priority</button>
+          </div>
+          
+          <!-- Active Filter Chips -->
+          <div id="activeFilterChips" class="filter-chips-container">
+            <!-- Filter chips will be populated by JavaScript -->
+          </div>
+        </div>
+        
+        <!-- Bulk Actions Bar -->
+        <div id="bulkActions" class="bulk-actions-bar" style="display: none;">
+          <div class="bulk-actions-content">
+            <div class="bulk-selection-info">
+              <input type="checkbox" id="selectAllGroups" class="select-all-checkbox">
+              <label for="selectAllGroups" class="select-all-label">Select All</label>
+              <span id="selectionCount" class="selection-count">0 groups selected</span>
+            </div>
+            
+            <div class="bulk-action-buttons">
+              <button class="btn btn-primary" onclick="bulkAllowSelected()">
+                Allow All Selected
+              </button>
+              <button class="btn btn-secondary" onclick="bulkIgnoreSelected()">
+                Ignore All Selected
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Conflict Groups Container -->
+        <div class="card">
+          <h2 class="card-title">Conflicts</h2>
+          <div id="conflictGroupsContainer" class="conflict-groups">
+            <div class="empty-state">
+              <h3>Loading Conflicts...</h3>
+              <p>Please wait while we load recent conflicts.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Campaign Manager Page -->
+      <div id="campaign-manager" class="page">
+        <div class="placeholder">
+          <h3>Campaign Manager Coming Soon</h3>
+        </div>
+      </div>
+
+      <!-- Admin Page -->
+      <div id="admin" class="page">
+        <div class="placeholder">
+          <h3>Admin Panel Coming Soon</h3>
+        </div>
+      </div>
+
+      <div id="status"></div>
+    </main>
+
+    <!-- Create Parameter Modal -->
+    <div id="createParameterModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Create New Parameter</h3>
+          <button class="modal-close" onclick="hideCreateParameterDialog()">×</button>
+        </div>
+        <div class="modal-body">
+          <label for="modalParameterName" class="modal-label">Parameter Name</label>
+          <input type="text" id="modalParameterName" class="modal-input" placeholder="e.g., utm_content" maxlength="50">
+          <div class="modal-help">Parameter will be created in draft mode and can be activated later.</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="hideCreateParameterDialog()">Cancel</button>
+          <button class="btn btn-primary" onclick="createNewParameter()">Create Parameter</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Parameter Modal -->
+    <div id="deleteParameterModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Delete Parameter</h3>
+          <button class="modal-close" onclick="hideDeleteParameterDialog()">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete the parameter <strong id="deleteParameterName"></strong>?</p>
+          <p class="modal-help">This will remove all associated rules and cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="hideDeleteParameterDialog()">Cancel</button>
+          <button class="btn btn-danger" onclick="confirmDeleteParameter()">Delete Parameter</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Value Modal -->
+    <div id="deleteValueModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Delete Value</h3>
+          <button class="modal-close" onclick="hideDeleteValueDialog()">×</button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete the value <strong id="deleteValueName"></strong>?</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="hideDeleteValueDialog()">Cancel</button>
+          <button class="btn btn-danger" onclick="confirmDeleteValue()">Delete Value</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/config.js"></script>  
+    <script src="js/ui.js"></script>
+    <script src="js/parameters.js"></script>
+    <script src="js/conditionalRules.js"></script>
+    <script src="js/conflictLog.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>
