@@ -49,7 +49,7 @@ export default function ConditionalRules() {
           action={<Button onClick={() => navigate('/monitor/rules/new')} size="sm"><PlusIcon className="h-4 w-4 mr-1.5" />Create your first rule</Button>}
         />
       ) : (
-        <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+        <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-100">

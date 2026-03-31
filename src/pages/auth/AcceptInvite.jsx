@@ -85,7 +85,7 @@ export default function AcceptInvite() {
           {invitation && <p className="text-sm text-zinc-500 mt-1">Join <strong>{invitation.organizations.name}</strong> on ValidUrchin</p>}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-zinc-200 p-6">
           {error && !invitation ? (
             <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
           ) : (

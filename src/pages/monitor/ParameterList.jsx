@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, PauseIcon, PlayIcon } from '@heroicons/react/24/outline'
 import { useConfiguration } from '../../hooks/useConfiguration'
 import { useOrg } from '../../contexts/OrgContext'
 import { saveConfiguration } from '../../lib/api'
@@ -15,10 +15,10 @@ function Spinner() {
   )
 }
 
-function EmptyRow({ message }) {
+function EmptyRow({ colSpan, message }) {
   return (
     <tr>
-      <td colSpan={5} className="px-5 py-16 text-center">
+      <td colSpan={colSpan} className="px-5 py-16 text-center">
         <p className="text-sm text-zinc-400">{message}</p>
       </td>
     </tr>
@@ -36,6 +36,9 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+const iconBtn = 'p-1 rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors'
+const iconBtnDanger = 'p-1 rounded text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors'
+
 export default function MonitorSettings() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -44,7 +47,6 @@ export default function MonitorSettings() {
 
   const tab = location.pathname.startsWith('/monitor/rules') ? 'rules' : 'params'
 
-  // Add parameter state
   const [showAdd, setShowAdd] = useState(false)
   const [newParamName, setNewParamName] = useState('')
   const [adding, setAdding] = useState(false)
@@ -79,6 +81,18 @@ export default function MonitorSettings() {
     } finally {
       setAdding(false)
     }
+  }
+
+  async function handleToggleParam(name, data) {
+    const isActive = getParamStatus(data) === 'active'
+    await saveConfiguration(currentOrg.firestore_api_key, {
+      ...config,
+      monitoredParameters: {
+        ...parameters,
+        [name]: { ...data, active: !isActive, status: undefined, updated: new Date().toISOString() },
+      },
+    })
+    await reload()
   }
 
   async function handleDeleteParam(name) {
@@ -147,7 +161,7 @@ export default function MonitorSettings() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
         {tab === 'params' ? (
           <table className="w-full">
             <thead>
@@ -161,40 +175,47 @@ export default function MonitorSettings() {
             </thead>
             <tbody>
               {Object.keys(parameters).length === 0 ? (
-                <EmptyRow message="No parameters yet. Add your first UTM parameter to get started." />
+                <EmptyRow colSpan={5} message="No parameters yet. Add your first UTM parameter to get started." />
               ) : (
                 Object.entries(parameters).map(([name, data]) => {
                   const status = getParamStatus(data)
                   const valueCount = config?.allowedValues?.[name]?.length || 0
+                  const isActive = status === 'active'
                   return (
-                    <tr key={name} className="border-b border-zinc-50 hover:bg-zinc-50 group">
+                    <tr
+                      key={name}
+                      onClick={() => navigate(`/monitor/parameters/${name}`)}
+                      className="border-b border-zinc-50 hover:bg-zinc-50 cursor-pointer"
+                    >
                       <td className="px-5 py-3">
-                        <button
-                          onClick={() => navigate(`/monitor/parameters/${name}`)}
-                          className="font-mono font-medium text-zinc-900 hover:text-teal-700 text-sm text-left"
-                        >
-                          {name}
-                        </button>
+                        <span className="font-mono font-medium text-zinc-900 text-sm">{name}</span>
                       </td>
                       <td className="px-5 py-3 text-sm text-zinc-400">
-                        {valueCount === 0 ? 'All values allowed' : `${valueCount} allowed value${valueCount !== 1 ? 's' : ''}`}
+                        {valueCount === 0 ? 'All values allowed' : `${valueCount} value${valueCount !== 1 ? 's' : ''}`}
                       </td>
                       <td className="px-5 py-3">
                         <Badge variant={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>
                       </td>
                       <td className="px-5 py-3 text-sm text-zinc-400">{fmtDate(data.updated || data.created)}</td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-3">
                           <button
                             onClick={() => navigate(`/monitor/parameters/${name}`)}
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
+                            className={iconBtn}
                             title="Edit"
                           >
                             <PencilIcon className="h-4 w-4" />
                           </button>
                           <button
+                            onClick={() => handleToggleParam(name, data)}
+                            className={iconBtn}
+                            title={isActive ? 'Pause' : 'Activate'}
+                          >
+                            {isActive ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+                          </button>
+                          <button
                             onClick={() => handleDeleteParam(name)}
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50"
+                            className={iconBtnDanger}
                             title="Delete"
                           >
                             <TrashIcon className="h-4 w-4" />
@@ -220,10 +241,14 @@ export default function MonitorSettings() {
             </thead>
             <tbody>
               {rules.length === 0 ? (
-                <EmptyRow message="No conditional rules yet. Create one to get started." />
+                <EmptyRow colSpan={5} message="No conditional rules yet. Create one to get started." />
               ) : (
                 rules.map(rule => (
-                  <tr key={rule.id} className="border-b border-zinc-50 hover:bg-zinc-50 group">
+                  <tr
+                    key={rule.id}
+                    onClick={() => navigate(`/monitor/rules/${rule.id}/edit`)}
+                    className="border-b border-zinc-50 hover:bg-zinc-50 cursor-pointer"
+                  >
                     <td className="px-5 py-3 text-sm font-medium text-zinc-900">{rule.name || `Rule ${rule.id?.slice(0, 6)}`}</td>
                     <td className="px-5 py-3 text-sm text-zinc-500 font-mono">
                       {rule.anchor?.parameter} = {rule.anchor?.value}
@@ -234,24 +259,25 @@ export default function MonitorSettings() {
                     <td className="px-5 py-3">
                       <Badge variant={rule.active ? 'active' : 'paused'}>{rule.active ? 'Active' : 'Paused'}</Badge>
                     </td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleToggleRule(rule.id)}
-                          className="px-2 py-1 rounded-lg text-xs text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100"
-                        >
-                          {rule.active ? 'Pause' : 'Resume'}
-                        </button>
+                    <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-3">
                         <button
                           onClick={() => navigate(`/monitor/rules/${rule.id}/edit`)}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
+                          className={iconBtn}
                           title="Edit"
                         >
                           <PencilIcon className="h-4 w-4" />
                         </button>
                         <button
+                          onClick={() => handleToggleRule(rule.id)}
+                          className={iconBtn}
+                          title={rule.active ? 'Pause' : 'Activate'}
+                        >
+                          {rule.active ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+                        </button>
+                        <button
                           onClick={() => handleDeleteRule(rule.id)}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50"
+                          className={iconBtnDanger}
                           title="Delete"
                         >
                           <TrashIcon className="h-4 w-4" />
@@ -276,7 +302,7 @@ export default function MonitorSettings() {
               value={newParamName}
               onChange={e => setNewParamName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddParameter()}
-              className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-600"
+              className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-600"
               placeholder="e.g. utm_source"
               autoFocus
             />
