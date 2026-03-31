@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import {
   HomeIcon,
   AdjustmentsHorizontalIcon,
@@ -8,7 +9,11 @@ import {
   UsersIcon,
   KeyIcon,
   XMarkIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline'
+import { useOrg } from '../../contexts/OrgContext'
+import { supabase } from '../../lib/supabase'
+import { getDomainLimit, getEventLimit } from '../../lib/plans'
 
 const mainNav = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
@@ -19,12 +24,29 @@ const mainNav = [
 
 const settingsNav = [
   { name: 'Organization', href: '/settings/organization', icon: BuildingOfficeIcon },
+  { name: 'Domains', href: '/settings/domains', icon: GlobeAltIcon },
   { name: 'Team Members', href: '/settings/team', icon: UsersIcon },
   { name: 'Urchin Snippet', href: '/settings/api-keys', icon: KeyIcon },
 ]
 
 export default function Sidebar({ onClose }) {
   const location = useLocation()
+  const { currentOrg } = useOrg()
+  const [domainsUsed, setDomainsUsed] = useState(0)
+
+  useEffect(() => {
+    if (!currentOrg?.id) return
+    supabase
+      .from('allowed_domains')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', currentOrg.id)
+      .then(({ count }) => setDomainsUsed(count || 0))
+  }, [currentOrg?.id])
+
+  const plan = currentOrg?.plan || 'free'
+  const eventsUsed = currentOrg?.events_this_period || 0
+  const eventLimit = getEventLimit(plan)
+  const domainLimit = getDomainLimit(plan)
 
   const isActive = (item) => {
     if (item.matchPrefix) return location.pathname.startsWith(item.matchPrefix)
@@ -104,17 +126,30 @@ export default function Sidebar({ onClose }) {
       </nav>
 
       {/* Usage block — pinned to bottom */}
-      <div className="flex-shrink-0 border-t border-zinc-100 px-4 py-4">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs text-zinc-500">Events monitored</span>
-          <span className="text-xs text-zinc-400">0 / 10,000</span>
+      <div className="flex-shrink-0 border-t border-zinc-200 px-4 py-4 space-y-3">
+        {/* Events */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-zinc-500">Events monitored</span>
+            <span className="text-xs text-zinc-400">{eventsUsed.toLocaleString()} / {eventLimit.toLocaleString()}</span>
+          </div>
+          <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+            <div className="h-full bg-teal-600 rounded-full" style={{ width: `${Math.min((eventsUsed / eventLimit) * 100, 100)}%` }} />
+          </div>
         </div>
-        <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-          <div className="h-full bg-teal-600 rounded-full" style={{ width: '0%' }} />
+        {/* Domains */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-zinc-500">Domains</span>
+            <span className="text-xs text-zinc-400">{domainsUsed} / {domainLimit === null ? '∞' : domainLimit}</span>
+          </div>
+          <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+            <div className="h-full bg-teal-600 rounded-full" style={{ width: domainLimit ? `${Math.min((domainsUsed / domainLimit) * 100, 100)}%` : '0%' }} />
+          </div>
         </div>
-        <div className="flex items-center justify-between mt-1.5">
+        <div className="flex items-center justify-between">
           <span className="text-xs text-zinc-400">Resets in 28 days</span>
-          <a href="#" className="text-xs text-teal-600 hover:text-teal-700">Manage plan →</a>
+          <a href="/settings/plan" className="text-xs text-teal-600 hover:text-teal-700">Manage plan →</a>
         </div>
       </div>
     </div>

@@ -113,6 +113,10 @@ export default function UrchinSnippet() {
             </Button>
           </div>
         </div>
+        <p className="text-xs text-zinc-500 mt-2">
+          Events will only be collected from your approved domains. Requests from other domains are silently ignored.
+          <a href="/settings/domains" className="text-teal-600 hover:text-teal-700 ml-1">Manage domains →</a>
+        </p>
       </div>
     </div>
   )

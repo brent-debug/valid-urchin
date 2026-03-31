@@ -14,6 +14,7 @@ import ConflictLog from './pages/conflicts/ConflictLog'
 import OrganizationSettings from './pages/settings/OrganizationSettings'
 import TeamMembers from './pages/settings/TeamMembers'
 import ApiKeys from './pages/settings/ApiKeys'
+import Domains from './pages/settings/Domains'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="settings/organization" element={<OrganizationSettings />} />
         <Route path="settings/team" element={<TeamMembers />} />
         <Route path="settings/api-keys" element={<ApiKeys />} />
+        <Route path="settings/domains" element={<Domains />} />
       </Route>
     </Routes>
   )
