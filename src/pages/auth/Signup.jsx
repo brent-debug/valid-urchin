@@ -17,12 +17,22 @@ export default function Signup() {
     setError(null)
 
     try {
+      // 1. Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
       })
       if (authError) throw authError
 
+      // 2. Set the session explicitly so the Edge Function call is authenticated
+      if (authData.session) {
+        await supabase.auth.setSession({
+          access_token: authData.session.access_token,
+          refresh_token: authData.session.refresh_token,
+        })
+      }
+
+      // 3. Call Edge Function
       const { data, error } = await supabase.functions.invoke('create-organization', {
         body: {
           userId: authData.user.id,
@@ -30,8 +40,9 @@ export default function Signup() {
         }
       })
 
-      if (error) throw error
+      if (error) throw new Error(error.message)
 
+      // 4. Navigate to dashboard
       navigate('/')
 
     } catch (err) {
