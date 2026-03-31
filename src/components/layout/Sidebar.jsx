@@ -54,7 +54,7 @@ export default function Sidebar({ onClose }) {
                 <NavLink
                   to={item.href}
                   className={`
-                    flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
+                    flex items-center gap-3 px-3 py-2 text-sm transition-colors
                     ${active
                       ? 'bg-teal-50 text-teal-700 font-medium'
                       : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'
@@ -86,7 +86,7 @@ export default function Sidebar({ onClose }) {
                   <NavLink
                     to={item.href}
                     className={`
-                      flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
+                      flex items-center gap-3 px-3 py-2 text-sm transition-colors
                       ${active
                         ? 'bg-teal-50 text-teal-700 font-medium'
                         : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900'

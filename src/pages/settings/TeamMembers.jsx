@@ -113,7 +113,7 @@ export default function TeamMembers() {
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Members table */}
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
           <p className="text-sm font-semibold text-zinc-900">Team members</p>
           {can('invite_members') && (
@@ -192,7 +192,7 @@ export default function TeamMembers() {
 
       {/* Pending invitations */}
       {invitations.length > 0 && (
-        <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+        <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
           <div className="px-5 py-4 border-b border-zinc-100">
             <p className="text-sm font-semibold text-zinc-900">Pending invitations</p>
           </div>
@@ -244,7 +244,7 @@ export default function TeamMembers() {
               <input
                 value={inviteLink}
                 readOnly
-                className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 text-xs font-mono bg-zinc-50"
+                className="flex-1 px-3 py-2 rounded-md border border-zinc-200 text-xs font-mono bg-zinc-50"
               />
               <button
                 onClick={() => navigator.clipboard.writeText(inviteLink)}
@@ -269,7 +269,7 @@ export default function TeamMembers() {
                 type="email"
                 value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
                 placeholder="colleague@company.com"
               />
             </div>
@@ -278,7 +278,7 @@ export default function TeamMembers() {
               <select
                 value={inviteRole}
                 onChange={e => setInviteRole(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
               >
                 <option value="viewer">Viewer</option>
                 <option value="member">Member</option>

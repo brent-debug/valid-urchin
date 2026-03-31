@@ -61,7 +61,7 @@ export default function Signup() {
           <p className="text-sm text-zinc-500 mt-1">Start validating UTM parameters</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-zinc-200 p-6">
           <form onSubmit={handleSignup} className="space-y-4">
             {error && (
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
@@ -73,7 +73,7 @@ export default function Signup() {
                 value={orgName}
                 onChange={e => setOrgName(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 placeholder="Acme Corp"
               />
             </div>
@@ -84,7 +84,7 @@ export default function Signup() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 placeholder="you@company.com"
               />
             </div>
@@ -96,7 +96,7 @@ export default function Signup() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
+                className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
                 placeholder="Min. 6 characters"
               />
             </div>

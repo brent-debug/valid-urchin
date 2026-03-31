@@ -29,7 +29,7 @@ export default function OrganizationSettings() {
 
   return (
     <div className="max-w-lg space-y-6">
-      <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4">
+      <div className="bg-white rounded-lg border border-zinc-200 p-6 space-y-4">
         <h2 className="text-sm font-semibold text-zinc-900">Organization details</h2>
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Organization name</label>
