@@ -1,11 +1,11 @@
 export default function Button({ children, variant = 'primary', size = 'md', className = '', disabled, onClick, type = 'button', ...props }) {
-  const base = 'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
+  const base = 'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
 
   const variants = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 rounded-full',
-    secondary: 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50 rounded-lg',
+    primary: 'bg-teal-600 text-white hover:bg-teal-700 rounded-full',
+    secondary: 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50 rounded-full',
     ghost: 'text-zinc-600 hover:bg-zinc-100 rounded-lg',
-    danger: 'bg-red-600 text-white hover:bg-red-700 rounded-lg',
+    danger: 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-lg',
   }
 
   const sizes = {

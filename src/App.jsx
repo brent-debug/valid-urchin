@@ -9,7 +9,6 @@ import AcceptInvite from './pages/auth/AcceptInvite'
 import Dashboard from './pages/dashboard/Dashboard'
 import ParameterList from './pages/monitor/ParameterList'
 import ParameterEditor from './pages/monitor/ParameterEditor'
-import ConditionalRules from './pages/monitor/ConditionalRules'
 import ConditionalRuleEditor from './pages/monitor/ConditionalRuleEditor'
 import ConflictLog from './pages/conflicts/ConflictLog'
 import OrganizationSettings from './pages/settings/OrganizationSettings'
@@ -18,7 +17,7 @@ import ApiKeys from './pages/settings/ApiKeys'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600" /></div>
   if (!user) return <Navigate to="/login" replace />
   return children
 }
@@ -40,7 +39,7 @@ function AppRoutes() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="monitor/parameters" element={<ParameterList />} />
         <Route path="monitor/parameters/:paramName" element={<ParameterEditor />} />
-        <Route path="monitor/rules" element={<ConditionalRules />} />
+        <Route path="monitor/rules" element={<ParameterList />} />
         <Route path="monitor/rules/new" element={<ConditionalRuleEditor />} />
         <Route path="monitor/rules/:ruleId/edit" element={<ConditionalRuleEditor />} />
         <Route path="conflicts" element={<ConflictLog />} />
