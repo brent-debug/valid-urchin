@@ -44,9 +44,8 @@ export default function ConflictLog() {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       // Sort client-side — avoids needing a Firestore composite index
       all.sort((a, b) => {
-        const ta = a.validationTimestamp?.toDate?.()?.getTime?.() || 0
-        const tb = b.validationTimestamp?.toDate?.()?.getTime?.() || 0
-        return tb - ta
+        const getTs = v => v?.toDate?.()?.getTime?.() ?? (typeof v === 'string' ? new Date(v).getTime() : 0)
+        return getTs(b.validationTimestamp) - getTs(a.validationTimestamp)
       })
       setConflicts(all.slice(0, 200))
     } catch (err) {
@@ -58,8 +57,12 @@ export default function ConflictLog() {
 
   const now = Date.now()
   const filtered = conflicts.filter(c => {
-    const ts = c.validationTimestamp?.toDate?.()?.getTime?.() || 0
-    if (timeRange.ms !== Infinity && now - ts > timeRange.ms) return false
+    const raw = c.validationTimestamp
+    const ts = raw?.toDate?.()?.getTime?.()   // Firestore Timestamp
+      ?? (typeof raw === 'string' ? new Date(raw).getTime() : null)  // ISO string
+      ?? (typeof raw === 'number' ? raw : null)  // Unix ms
+      ?? null
+    if (timeRange.ms !== Infinity && (ts === null || now - ts > timeRange.ms)) return false
     if (statusFilter === 'open' && c.resolved) return false
     if (statusFilter === 'resolved' && !c.resolved) return false
     const url = c.originalEventData?.url || ''
@@ -189,7 +192,7 @@ export default function ConflictLog() {
                             ))}
                           </div>
                           <div className="flex-shrink-0 text-xs text-zinc-400">
-                            {conflict.validationTimestamp?.toDate?.()?.toLocaleString?.() || ''}
+                            {(() => { const r = conflict.validationTimestamp; const d = r?.toDate?.() ?? (r ? new Date(r) : null); return d?.toLocaleString() || '' })()}
                           </div>
                         </div>
                       </div>
