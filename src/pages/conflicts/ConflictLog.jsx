@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore'
+import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useOrg } from '../../contexts/OrgContext'
 import { useConfiguration } from '../../hooks/useConfiguration'
@@ -35,16 +35,22 @@ export default function ConflictLog() {
 
   async function loadConflicts() {
     setLoading(true)
+    console.log('[ConflictLog] firestore_api_key:', apiKey)
+    const collPath = `organizations/${apiKey}/conflicts`
+    console.log('[ConflictLog] querying collection:', collPath)
     try {
-      const q = query(
-        collection(db, `organizations/${apiKey}/conflicts`),
-        orderBy('validationTimestamp', 'desc'),
-        limit(200)
-      )
-      const snap = await getDocs(q)
-      setConflicts(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+      const snap = await getDocs(collection(db, collPath))
+      console.log('[ConflictLog] docs returned:', snap.size)
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      // Sort client-side — avoids needing a Firestore composite index
+      all.sort((a, b) => {
+        const ta = a.validationTimestamp?.toDate?.()?.getTime?.() || 0
+        const tb = b.validationTimestamp?.toDate?.()?.getTime?.() || 0
+        return tb - ta
+      })
+      setConflicts(all.slice(0, 200))
     } catch (err) {
-      console.error(err)
+      console.error('[ConflictLog] error:', err)
     } finally {
       setLoading(false)
     }
@@ -73,7 +79,7 @@ export default function ConflictLog() {
   const unresolved = filtered.filter(c => !c.resolved).length
   const urlsAffected = Object.keys(groups).length
 
-  const handleAllow = async (conflict, reason) => {
+  const handleAllow = async (_conflict, reason) => {
     if (!config) return
     const { parameter, value } = reason
     const current = config.allowedValues?.[parameter] || []
