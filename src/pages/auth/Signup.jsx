@@ -1,88 +1,39 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
 
-const DEFAULT_CONFIG = {
-  monitoredParameters: {
-    utm_source: { active: true, status: 'active', created: new Date().toISOString() },
-    utm_medium: { active: true, status: 'active', created: new Date().toISOString() },
-    utm_campaign: { active: true, status: 'active', created: new Date().toISOString() },
-    utm_content: { active: false, status: 'draft', created: new Date().toISOString() },
-    utm_term: { active: false, status: 'draft', created: new Date().toISOString() },
-  },
-  allowedValues: {
-    utm_medium: ['cpc', 'email', 'organic', 'social', 'referral', 'display', 'video'],
-    utm_source: ['google', 'facebook', 'instagram', 'linkedin', 'twitter', 'bing', 'newsletter'],
-  },
-  casingRules: {
-    utm_source: 'lowercase',
-    utm_medium: 'lowercase',
-    utm_campaign: 'lowercase',
-  },
-  conditionalRules: [
-    {
-      id: 'rule_default_1',
-      name: 'utm_source = "google"',
-      anchor: { parameter: 'utm_source', value: 'google' },
-      conditionals: { utm_medium: ['cpc', 'organic'] },
-      createdAt: new Date().toISOString(),
-      active: true,
-    },
-  ],
-}
-
 export default function Signup() {
-  const { signUp } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [orgName, setOrgName] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault()
-    setError('')
     setLoading(true)
+    setError(null)
+
     try {
-      // 1. Create Supabase auth user
-      const { data, error: signUpError } = await signUp(email, password)
-      if (signUpError) throw signUpError
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      })
+      if (authError) throw authError
 
-      const userId = data.user?.id
-      if (!userId) throw new Error('Signup succeeded but no user ID returned')
-
-      // 2. Create organization
-      const slug = orgName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '')
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .insert({ name: orgName, slug })
-        .select()
-        .single()
-      if (orgError) throw orgError
-
-      // 3. Add user as owner
-      const { error: memberError } = await supabase
-        .from('organization_members')
-        .insert({
-          organization_id: org.id,
-          user_id: userId,
-          role: 'owner',
-          accepted_at: new Date().toISOString(),
-        })
-      if (memberError) throw memberError
-
-      // 4. Populate default UTM configuration
-      await fetch(`${import.meta.env.VITE_CONFIG_API_URL}?apiKey=${org.firestore_api_key}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(DEFAULT_CONFIG),
+      const { data, error } = await supabase.functions.invoke('create-organization', {
+        body: {
+          userId: authData.user.id,
+          orgName,
+        }
       })
 
-      // 5. Navigate to app
+      if (error) throw error
+
       navigate('/')
+
     } catch (err) {
       setError(err.message)
     } finally {
@@ -100,7 +51,7 @@ export default function Signup() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4">
             {error && (
               <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
             )}
