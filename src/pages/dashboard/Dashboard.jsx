@@ -12,6 +12,20 @@ function Spinner() {
   )
 }
 
+function formatTime(raw) {
+  if (!raw) return '—'
+  const date = raw?.toDate?.() ?? new Date(raw)
+  if (isNaN(date)) return '—'
+  const diffMs = Date.now() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 function groupByDay(conflicts) {
   const days = {}
   conflicts.forEach(c => {
@@ -59,7 +73,7 @@ function BarChart({ data }) {
 }
 
 export default function Dashboard() {
-  const { currentOrg, loading: orgLoading } = useOrg()
+  const { currentOrg, org, loading: orgLoading } = useOrg()
   const apiKey = currentOrg?.firestore_api_key
   const navigate = useNavigate()
   const [tab, setTab] = useState('conflicts')
@@ -90,7 +104,12 @@ export default function Dashboard() {
   if (!currentOrg) return null
 
   const chartData = groupByDay(conflicts)
-  const recent = conflicts.slice(0, 8)
+  const recent = conflicts.slice(0, 3)
+
+  // Use org-level counts from OrgContext (set during login), fall back to local conflicts
+  const conflictCount = currentOrg?.conflictCount ?? org?.conflictCount ?? conflicts.length
+  const eventCount = currentOrg?.eventCount ?? org?.eventCount ?? 0
+  const conflictRate = eventCount > 0 ? ((conflictCount / eventCount) * 100).toFixed(1) : null
 
   return (
     <div className="space-y-5">
@@ -111,15 +130,19 @@ export default function Dashboard() {
 
       {tab === 'conflicts' ? (
         <>
-          {/* Metric cards */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Metric cards — 3 cards */}
+          <div className="grid grid-cols-3 gap-4">
             <div className="bg-white border border-zinc-200 p-5">
               <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Conflicts (30d)</p>
-              <p className="text-4xl font-semibold text-zinc-900">{loading ? '—' : conflicts.length}</p>
+              <p className="text-4xl font-semibold text-zinc-900">{loading ? '—' : conflictCount}</p>
             </div>
             <div className="bg-white border border-zinc-200 p-5">
               <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Events monitored</p>
-              <p className="text-4xl font-semibold text-zinc-900">0</p>
+              <p className="text-4xl font-semibold text-zinc-900">{eventCount}</p>
+            </div>
+            <div className="bg-white border border-zinc-200 p-5">
+              <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Conflict rate</p>
+              <p className="text-4xl font-semibold text-zinc-900">{conflictRate !== null ? `${conflictRate}%` : '—'}</p>
             </div>
           </div>
 
@@ -155,7 +178,6 @@ export default function Dashboard() {
                 <tbody>
                   {recent.map(c => {
                     const reason = c.conflictReasons?.[0]
-                    const ts = c.validationTimestamp?.toDate?.()
                     return (
                       <tr
                         key={c.id}
@@ -167,7 +189,7 @@ export default function Dashboard() {
                         </td>
                         <td className="px-5 py-3 text-sm font-mono text-zinc-600">{reason?.parameter || '—'}</td>
                         <td className="px-5 py-3 text-sm font-mono text-red-600">{reason?.value || '—'}</td>
-                        <td className="px-5 py-3 text-sm text-zinc-400">{ts ? ts.toLocaleDateString() : '—'}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-400">{formatTime(c.validationTimestamp)}</td>
                       </tr>
                     )
                   })}

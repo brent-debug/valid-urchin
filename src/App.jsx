@@ -10,6 +10,7 @@ import Dashboard from './pages/dashboard/Dashboard'
 import ParameterList from './pages/monitor/ParameterList'
 import ParameterEditor from './pages/monitor/ParameterEditor'
 import ConditionalRuleEditor from './pages/monitor/ConditionalRuleEditor'
+import ConditionalRuleView from './pages/monitor/ConditionalRuleView'
 import ConflictLog from './pages/conflicts/ConflictLog'
 import OrganizationSettings from './pages/settings/OrganizationSettings'
 import TeamMembers from './pages/settings/TeamMembers'
@@ -43,6 +44,7 @@ function AppRoutes() {
         <Route path="monitor/rules" element={<ParameterList />} />
         <Route path="monitor/rules/new" element={<ConditionalRuleEditor />} />
         <Route path="monitor/rules/:ruleId/edit" element={<ConditionalRuleEditor />} />
+        <Route path="monitor/rules/:ruleId" element={<ConditionalRuleView />} />
         <Route path="conflicts" element={<ConflictLog />} />
         <Route path="settings/organization" element={<OrganizationSettings />} />
         <Route path="settings/team" element={<TeamMembers />} />

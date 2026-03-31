@@ -4,6 +4,7 @@ import { ArrowLeftIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useConfiguration } from '../../hooks/useConfiguration'
 import { useOrg } from '../../contexts/OrgContext'
 import { saveConfiguration } from '../../lib/api'
+import { supabase } from '../../lib/supabase'
 import Badge from '../../components/ui/Badge'
 
 function Spinner() {
@@ -32,6 +33,10 @@ export default function ParameterEditor() {
   const [status, setStatus] = useState('draft')
   const [saving, setSaving] = useState(false)
 
+  // Applied domains state
+  const [availableDomains, setAvailableDomains] = useState([])
+  const [selectedDomains, setSelectedDomains] = useState(['all'])
+
   useEffect(() => {
     if (!config) return
     const paramData = config.monitoredParameters?.[paramName]
@@ -41,7 +46,27 @@ export default function ParameterEditor() {
     if (paramData.status === 'draft') setStatus('draft')
     else if (paramData.active) setStatus('active')
     else setStatus('paused')
+    const domains = paramData.appliedDomains
+    setSelectedDomains(domains && domains.length > 0 ? domains : ['all'])
   }, [config, paramName])
+
+  useEffect(() => {
+    if (currentOrg?.id) {
+      fetchDomains()
+    }
+  }, [currentOrg?.id])
+
+  async function fetchDomains() {
+    try {
+      const { data } = await supabase
+        .from('allowed_domains')
+        .select('domain')
+        .eq('organization_id', currentOrg.id)
+      setAvailableDomains((data || []).map(d => d.domain))
+    } catch (e) {
+      console.warn('Failed to fetch domains:', e)
+    }
+  }
 
   const save = async (overrides = {}) => {
     if (!config || !currentOrg) return
@@ -50,16 +75,32 @@ export default function ParameterEditor() {
       const nextStatus = overrides.status ?? status
       const nextValues = overrides.allowedValues ?? allowedValues
       const nextCasing = overrides.caseSensitive ?? caseSensitive
+      const nextDomains = overrides.appliedDomains ?? selectedDomains
+
+      const { data: { user } } = await supabase.auth.getUser()
+      const paramData = config.monitoredParameters?.[paramName]
+      const isNew = !paramData?.created
+
+      const updatedParam = {
+        ...paramData,
+        active: nextStatus === 'active',
+        status: nextStatus === 'draft' ? 'draft' : undefined,
+        updated: new Date().toISOString(),
+        appliedDomains: nextDomains,
+        lastModified: new Date().toISOString(),
+        lastModifiedBy: { userId: user?.id, email: user?.email },
+      }
+
+      if (isNew) {
+        updatedParam.created = new Date().toISOString()
+        updatedParam.createdBy = { userId: user?.id, email: user?.email }
+      }
+
       await saveConfiguration(currentOrg.firestore_api_key, {
         ...config,
         monitoredParameters: {
           ...config.monitoredParameters,
-          [paramName]: {
-            ...config.monitoredParameters?.[paramName],
-            active: nextStatus === 'active',
-            status: nextStatus === 'draft' ? 'draft' : undefined,
-            updated: new Date().toISOString(),
-          },
+          [paramName]: updatedParam,
         },
         allowedValues: { ...config.allowedValues, [paramName]: nextValues },
         casingRules: { ...config.casingRules, [paramName]: { caseSensitive: nextCasing } },
@@ -99,9 +140,36 @@ export default function ParameterEditor() {
     navigate('/monitor/parameters')
   }
 
+  function toggleDomain(domain) {
+    if (domain === 'all') {
+      setSelectedDomains(['all'])
+    } else {
+      setSelectedDomains(prev => {
+        const withoutAll = prev.filter(d => d !== 'all')
+        if (withoutAll.includes(domain)) {
+          const next = withoutAll.filter(d => d !== domain)
+          return next.length === 0 ? ['all'] : next
+        } else {
+          return [...withoutAll, domain]
+        }
+      })
+    }
+  }
+
   if (orgLoading || !config) return <Spinner />
   const paramData = config.monitoredParameters?.[paramName]
   if (!paramData) return <div className="text-center py-16 text-sm text-zinc-400">Parameter not found.</div>
+
+  // Conditional rules: split into anchor vs conditional
+  const allRules = config?.conditionalRules || []
+  const asAnchor = allRules.filter(r =>
+    r.anchors?.some(a => a.parameter === paramName) || r.anchor?.parameter === paramName
+  )
+  const asConditional = allRules.filter(r =>
+    paramName in (r.conditionals || {}) &&
+    !r.anchors?.some(a => a.parameter === paramName) &&
+    r.anchor?.parameter !== paramName
+  )
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -155,7 +223,7 @@ export default function ParameterEditor() {
                   setCaseSensitive(e.target.checked)
                   await save({ caseSensitive: e.target.checked })
                 }}
-                className="h-4 w-4 rounded border-zinc-300 text-teal-600 focus:ring-teal-600"
+                className="h-4 w-4 border-zinc-300 text-teal-600 focus:ring-teal-600"
               />
               <span className="text-sm text-zinc-700">Case sensitive</span>
             </label>
@@ -168,6 +236,21 @@ export default function ParameterEditor() {
               {paramData.created && <p>Created {new Date(paramData.created).toLocaleDateString()}</p>}
               {paramData.updated && <p>Updated {new Date(paramData.updated).toLocaleDateString()}</p>}
             </div>
+          </div>
+
+          {/* History */}
+          <div className="bg-white border border-zinc-200 p-5 space-y-1">
+            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">History</p>
+            {paramData.created && (
+              <p className="text-xs text-zinc-400">
+                Created {new Date(paramData.created).toLocaleDateString()}{paramData.createdBy?.email ? ` by ${paramData.createdBy.email}` : ''}
+              </p>
+            )}
+            {paramData.lastModified && (
+              <p className="text-xs text-zinc-400">
+                Modified {new Date(paramData.lastModified).toLocaleDateString()}{paramData.lastModifiedBy?.email ? ` by ${paramData.lastModifiedBy.email}` : ''}
+              </p>
+            )}
           </div>
 
           {/* Delete */}
@@ -235,37 +318,96 @@ export default function ParameterEditor() {
             )}
           </div>
 
-          {/* Conditional rules */}
+          {/* Applied domains */}
           <div className="bg-white border border-zinc-200 p-5 space-y-3">
+            <p className="text-sm font-semibold text-zinc-900">Applied domains</p>
+            <p className="text-xs text-zinc-400">Restrict this parameter to specific domains, or apply globally.</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedDomains.includes('all')}
+                  onChange={() => toggleDomain('all')}
+                  className="h-4 w-4 border-zinc-300 text-teal-600 focus:ring-teal-600"
+                />
+                <span className="text-sm text-zinc-700">All domains</span>
+              </label>
+              {availableDomains.map(domain => (
+                <label key={domain} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedDomains.includes(domain)}
+                    onChange={() => toggleDomain(domain)}
+                    className="h-4 w-4 border-zinc-300 text-teal-600 focus:ring-teal-600"
+                  />
+                  <span className="text-sm text-zinc-700">{domain}</span>
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={() => save({ appliedDomains: selectedDomains })}
+              disabled={saving}
+              className="bg-teal-600 text-white px-4 py-2 text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors"
+            >
+              Save domains
+            </button>
+          </div>
+
+          {/* Conditional rules */}
+          <div className="bg-white border border-zinc-200 p-5 space-y-4">
             <p className="text-sm font-semibold text-zinc-900">Conditional rules</p>
-            <p className="text-xs text-zinc-400">Rules that enforce different allowed values based on another parameter's value.</p>
-            {(() => {
-              const related = (config?.conditionalRules || []).filter(
-                r => r.anchor?.parameter === paramName || Object.keys(r.conditionals || {}).includes(paramName)
-              )
-              return related.length === 0 ? (
-                <button
-                  onClick={() => navigate('/monitor/rules/new')}
-                  className="text-sm text-teal-600 hover:text-teal-700"
-                >
-                  + Create a conditional rule
-                </button>
+            <p className="text-xs text-zinc-400">Rules that reference this parameter.</p>
+
+            {/* Used as anchor */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Used as anchor</p>
+              {asAnchor.length === 0 ? (
+                <p className="text-xs text-zinc-300">None</p>
               ) : (
-                <ul className="space-y-1.5">
-                  {related.map(r => (
-                    <li key={r.id} className="flex items-center justify-between text-sm">
+                <div className="space-y-1">
+                  {asAnchor.map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => navigate(`/monitor/rules/${r.id}`)}
+                      className="flex items-center justify-between text-sm px-3 py-2 border border-zinc-100 cursor-pointer hover:bg-teal-50 transition-colors"
+                    >
                       <span className="text-zinc-700">{r.name || `Rule ${r.id?.slice(0, 6)}`}</span>
-                      <button
-                        onClick={() => navigate(`/monitor/rules/${r.id}/edit`)}
-                        className="text-teal-600 hover:text-teal-700 text-xs"
-                      >
-                        Edit →
-                      </button>
-                    </li>
+                      <span className="text-zinc-400">→</span>
+                    </div>
                   ))}
-                </ul>
-              )
-            })()}
+                </div>
+              )}
+            </div>
+
+            {/* Used as conditional */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Used as conditional</p>
+              {asConditional.length === 0 ? (
+                <p className="text-xs text-zinc-300">None</p>
+              ) : (
+                <div className="space-y-1">
+                  {asConditional.map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => navigate(`/monitor/rules/${r.id}`)}
+                      className="flex items-center justify-between text-sm px-3 py-2 border border-zinc-100 cursor-pointer hover:bg-teal-50 transition-colors"
+                    >
+                      <span className="text-zinc-700">{r.name || `Rule ${r.id?.slice(0, 6)}`}</span>
+                      <span className="text-zinc-400">→</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {asAnchor.length === 0 && asConditional.length === 0 && (
+              <button
+                onClick={() => navigate('/monitor/rules/new')}
+                className="text-sm text-teal-600 hover:text-teal-700"
+              >
+                + Create a conditional rule
+              </button>
+            )}
           </div>
         </div>
       </div>

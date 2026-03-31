@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
+import { db } from '../lib/firebase'
+import { collection, query, where, getCountFromServer } from 'firebase/firestore'
 
 const OrgContext = createContext(null)
 
@@ -38,6 +40,23 @@ export function OrgProvider({ children }) {
       if (orgError) throw orgError
 
       setOrg({ ...orgData, role: membership.role })
+      try {
+        const periodStart = new Date()
+        periodStart.setDate(1)
+        periodStart.setHours(0, 0, 0, 0)
+        const eventsSnap = await getCountFromServer(
+          query(collection(db, `organizations/${orgData.firestore_api_key}/utm_events`),
+                where('receivedAt', '>=', periodStart.toISOString()))
+        )
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        const conflictsSnap = await getCountFromServer(
+          query(collection(db, `organizations/${orgData.firestore_api_key}/conflicts`),
+                where('validationTimestamp', '>=', thirtyDaysAgo.toISOString()))
+        )
+        setOrg(prev => ({ ...prev, eventCount: eventsSnap.data().count, conflictCount: conflictsSnap.data().count }))
+      } catch (e) {
+        console.warn('Count query failed:', e)
+      }
     } catch (err) {
       console.error('Error fetching org:', err)
       setOrg(null)
