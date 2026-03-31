@@ -49,7 +49,7 @@ export default function ConditionalRules() {
           action={<Button onClick={() => navigate('/monitor/rules/new')} size="sm"><PlusIcon className="h-4 w-4 mr-1.5" />Create your first rule</Button>}
         />
       ) : (
-        <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
+        <div className="bg-white border border-zinc-200 overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-100">
@@ -79,13 +79,13 @@ export default function ConditionalRules() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handleToggle(rule.id)} className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 text-xs">
+                      <button onClick={() => handleToggle(rule.id)} className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 text-xs">
                         {rule.active ? 'Pause' : 'Resume'}
                       </button>
-                      <button onClick={() => navigate(`/monitor/rules/${rule.id}/edit`)} className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100">
+                      <button onClick={() => navigate(`/monitor/rules/${rule.id}/edit`)} className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100">
                         <PencilIcon className="h-4 w-4" />
                       </button>
-                      <button onClick={() => handleDelete(rule.id)} className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50">
+                      <button onClick={() => handleDelete(rule.id)} className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50">
                         <TrashIcon className="h-4 w-4" />
                       </button>
                     </div>

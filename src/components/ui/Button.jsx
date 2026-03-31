@@ -4,8 +4,8 @@ export default function Button({ children, variant = 'primary', size = 'md', cla
   const variants = {
     primary: 'bg-teal-600 text-white hover:bg-teal-700 rounded-full',
     secondary: 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50 rounded-full',
-    ghost: 'text-zinc-600 hover:bg-zinc-100 rounded-lg',
-    danger: 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-lg',
+    ghost: 'text-zinc-600 hover:bg-zinc-100',
+    danger: 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100',
   }
 
   const sizes = {

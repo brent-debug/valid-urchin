@@ -70,7 +70,7 @@ export default function UrchinSnippet() {
   return (
     <div className="space-y-6 max-w-2xl">
       {/* Urchin Key */}
-      <div className="bg-white rounded-lg border border-zinc-200 p-6 space-y-4">
+      <div className="bg-white border border-zinc-200 p-6 space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900">Urchin Key</h2>
           <p className="text-xs text-zinc-500 mt-0.5">This key identifies your organization. Keep it private — it's embedded in your website snippet.</p>
@@ -80,7 +80,7 @@ export default function UrchinSnippet() {
             type={showKey ? 'text' : 'password'}
             value={urchinKey}
             readOnly
-            className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 text-sm font-mono bg-zinc-50"
+            className="flex-1 px-3 py-2 border border-zinc-200 text-sm font-mono bg-zinc-50"
           />
           <Button variant="secondary" size="sm" onClick={() => setShowKey(v => !v)}>
             {showKey ? 'Hide' : 'Show'}
@@ -100,13 +100,13 @@ export default function UrchinSnippet() {
       </div>
 
       {/* Urchin Snippet */}
-      <div className="bg-white rounded-lg border border-zinc-200 p-6 space-y-4">
+      <div className="bg-white border border-zinc-200 p-6 space-y-4">
         <div>
           <h2 className="text-sm font-semibold text-zinc-900">Urchin Snippet</h2>
           <p className="text-xs text-zinc-500 mt-0.5">Paste this in the <code className="bg-zinc-100 px-1 rounded">&lt;head&gt;</code> of every page you want to track.</p>
         </div>
         <div className="relative">
-          <pre className="bg-zinc-950 text-zinc-100 rounded-xl p-4 text-xs overflow-x-auto leading-relaxed">{snippet}</pre>
+          <pre className="bg-zinc-950 text-zinc-100 p-4 text-xs overflow-x-auto leading-relaxed">{snippet}</pre>
           <div className="absolute top-2 right-2">
             <Button size="sm" onClick={handleCopySnippet} className="text-xs">
               {copiedSnippet ? 'Copied!' : 'Copy'}

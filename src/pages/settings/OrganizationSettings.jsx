@@ -29,7 +29,7 @@ export default function OrganizationSettings() {
 
   return (
     <div className="max-w-lg space-y-6">
-      <div className="bg-white rounded-lg border border-zinc-200 p-6 space-y-4">
+      <div className="bg-white border border-zinc-200 p-6 space-y-4">
         <h2 className="text-sm font-semibold text-zinc-900">Organization details</h2>
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Organization name</label>
@@ -37,12 +37,12 @@ export default function OrganizationSettings() {
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
+            className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Plan</label>
-          <input value={currentOrg?.plan || 'free'} disabled className="w-full px-3 py-2 rounded-lg border border-zinc-200 text-sm bg-zinc-50 text-zinc-500 capitalize" />
+          <input value={currentOrg?.plan || 'free'} disabled className="w-full px-3 py-2 border border-zinc-200 text-sm bg-zinc-50 text-zinc-500 capitalize" />
         </div>
         {message && <p className={`text-sm ${message.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{message}</p>}
         <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>

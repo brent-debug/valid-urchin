@@ -161,7 +161,7 @@ export default function MonitorSettings() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
+      <div className="bg-white border border-zinc-200 overflow-hidden">
         {tab === 'params' ? (
           <table className="w-full">
             <thead>
@@ -302,7 +302,7 @@ export default function MonitorSettings() {
               value={newParamName}
               onChange={e => setNewParamName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddParameter()}
-              className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-600"
+              className="w-full px-3 py-2 border border-zinc-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-teal-600"
               placeholder="e.g. utm_source"
               autoFocus
             />

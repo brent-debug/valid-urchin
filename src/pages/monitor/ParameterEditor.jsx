@@ -124,7 +124,7 @@ export default function ParameterEditor() {
         {/* Left column */}
         <div className="space-y-4">
           {/* Status card */}
-          <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-3">
+          <div className="bg-white border border-zinc-200 p-5 space-y-3">
             <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Status</p>
             <div className="space-y-2">
               {STATUS_OPTIONS.map(opt => (
@@ -132,7 +132,7 @@ export default function ParameterEditor() {
                   key={opt.value}
                   onClick={async () => { setStatus(opt.value); await save({ status: opt.value }) }}
                   disabled={saving}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                  className={`w-full text-left px-3 py-2 text-sm font-medium transition-colors border ${
                     status === opt.value
                       ? 'bg-teal-50 text-teal-700 border-teal-200'
                       : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50'
@@ -145,7 +145,7 @@ export default function ParameterEditor() {
           </div>
 
           {/* Settings card */}
-          <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-3">
+          <div className="bg-white border border-zinc-200 p-5 space-y-3">
             <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Settings</p>
             <label className="flex items-center gap-3 cursor-pointer">
               <input
@@ -162,7 +162,7 @@ export default function ParameterEditor() {
           </div>
 
           {/* Change log */}
-          <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-2">
+          <div className="bg-white border border-zinc-200 p-5 space-y-2">
             <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Change log</p>
             <div className="text-xs text-zinc-400 space-y-1">
               {paramData.created && <p>Created {new Date(paramData.created).toLocaleDateString()}</p>}
@@ -173,7 +173,7 @@ export default function ParameterEditor() {
           {/* Delete */}
           <button
             onClick={handleDelete}
-            className="w-full bg-red-50 text-red-600 border border-red-200 rounded-lg px-3 py-2 text-sm font-medium hover:bg-red-100 transition-colors"
+            className="w-full bg-red-50 text-red-600 border border-red-200 px-3 py-2 text-sm font-medium hover:bg-red-100 transition-colors"
           >
             Delete parameter
           </button>
@@ -182,7 +182,7 @@ export default function ParameterEditor() {
         {/* Right column */}
         <div className="lg:col-span-2 space-y-4">
           {/* Allowed values */}
-          <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-4">
+          <div className="bg-white border border-zinc-200 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-zinc-900">Allowed values</p>
               {allowedValues.length > 0 && (
@@ -199,7 +199,7 @@ export default function ParameterEditor() {
                 onChange={e => setNewValue(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddValue()}
                 placeholder="Add a value…"
-                className="flex-1 px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                className="flex-1 px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
               />
               <button
                 onClick={handleAddValue}
@@ -212,7 +212,7 @@ export default function ParameterEditor() {
 
             {/* Values list */}
             {allowedValues.length === 0 ? (
-              <div className="border-2 border-dashed border-zinc-200 rounded-lg py-8 text-center">
+              <div className="border-2 border-dashed border-zinc-200 py-8 text-center">
                 <p className="text-sm text-zinc-400">No allowed values — all values permitted</p>
               </div>
             ) : (
@@ -236,7 +236,7 @@ export default function ParameterEditor() {
           </div>
 
           {/* Conditional rules */}
-          <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-3">
+          <div className="bg-white border border-zinc-200 p-5 space-y-3">
             <p className="text-sm font-semibold text-zinc-900">Conditional rules</p>
             <p className="text-xs text-zinc-400">Rules that enforce different allowed values based on another parameter's value.</p>
             {(() => {

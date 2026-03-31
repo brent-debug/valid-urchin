@@ -91,15 +91,15 @@ export default function ConflictLog() {
     <div className="space-y-4">
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-lg border border-zinc-200 p-4 text-center">
+        <div className="bg-white border border-zinc-200 p-4 text-center">
           <p className="text-2xl font-semibold text-zinc-900">{totalViolations}</p>
           <p className="text-xs text-zinc-500 mt-0.5">Total violations</p>
         </div>
-        <div className="bg-white rounded-lg border border-zinc-200 p-4 text-center">
+        <div className="bg-white border border-zinc-200 p-4 text-center">
           <p className="text-2xl font-semibold text-red-600">{unresolved}</p>
           <p className="text-xs text-zinc-500 mt-0.5">Unresolved</p>
         </div>
-        <div className="bg-white rounded-lg border border-zinc-200 p-4 text-center">
+        <div className="bg-white border border-zinc-200 p-4 text-center">
           <p className="text-2xl font-semibold text-amber-600">{urlsAffected}</p>
           <p className="text-xs text-zinc-500 mt-0.5">URLs affected</p>
         </div>
@@ -112,19 +112,19 @@ export default function ConflictLog() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search URLs…"
-          className="flex-1 min-w-0 px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
+          className="flex-1 min-w-0 px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
         />
         <select
           value={timeRange.label}
           onChange={e => setTimeRange(TIME_RANGES.find(t => t.label === e.target.value))}
-          className="px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
+          className="px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
         >
           {TIME_RANGES.map(t => <option key={t.label}>{t.label}</option>)}
         </select>
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
+          className="px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
         >
           <option value="all">All</option>
           <option value="open">Open</option>
@@ -146,7 +146,7 @@ export default function ConflictLog() {
             const isOpen = expanded[url]
             const openCount = items.filter(c => !c.resolved).length
             return (
-              <div key={url} className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
+              <div key={url} className="bg-white border border-zinc-200 overflow-hidden">
                 <button
                   onClick={() => toggleExpand(url)}
                   className="w-full flex items-center gap-3 px-5 py-4 hover:bg-zinc-50 text-left"

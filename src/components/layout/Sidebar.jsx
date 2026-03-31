@@ -39,7 +39,7 @@ export default function Sidebar({ onClose }) {
           <img src="/validurchin.png" alt="ValidUrchin" className="h-7 w-auto" />
           <span className="font-semibold text-zinc-900 text-sm tracking-tight">ValidUrchin</span>
         </div>
-        <button onClick={onClose} className="lg:hidden p-1 rounded-md text-zinc-400 hover:text-zinc-600">
+        <button onClick={onClose} className="lg:hidden p-1 text-zinc-400 hover:text-zinc-600">
           <XMarkIcon className="h-5 w-5" />
         </button>
       </div>

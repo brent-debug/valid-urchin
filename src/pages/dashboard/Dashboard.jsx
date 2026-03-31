@@ -113,24 +113,24 @@ export default function Dashboard() {
         <>
           {/* Metric cards */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg border border-zinc-200 p-5">
+            <div className="bg-white border border-zinc-200 p-5">
               <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Conflicts (30d)</p>
               <p className="text-4xl font-semibold text-zinc-900">{loading ? '—' : conflicts.length}</p>
             </div>
-            <div className="bg-white rounded-lg border border-zinc-200 p-5">
+            <div className="bg-white border border-zinc-200 p-5">
               <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Events monitored</p>
               <p className="text-4xl font-semibold text-zinc-900">0</p>
             </div>
           </div>
 
           {/* Bar chart */}
-          <div className="bg-white rounded-lg border border-zinc-200 p-5">
+          <div className="bg-white border border-zinc-200 p-5">
             <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-4">Conflicts per day</p>
             {loading ? <Spinner /> : <BarChart data={chartData} />}
           </div>
 
           {/* Recent conflicts table */}
-          <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
+          <div className="bg-white border border-zinc-200 overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
               <p className="text-sm font-semibold text-zinc-900">Recent conflicts</p>
               <Link to="/conflicts" className="text-sm text-teal-600 hover:text-teal-700">View all →</Link>
@@ -177,7 +177,7 @@ export default function Dashboard() {
           </div>
         </>
       ) : (
-        <div className="bg-white rounded-lg border border-zinc-200 p-12 text-center">
+        <div className="bg-white border border-zinc-200 p-12 text-center">
           <p className="text-3xl mb-3">📊</p>
           <p className="text-sm font-medium text-zinc-900">Event usage tracking coming soon</p>
           <p className="text-xs text-zinc-400 mt-1">We're working on detailed event analytics.</p>

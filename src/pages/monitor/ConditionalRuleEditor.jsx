@@ -115,19 +115,19 @@ export default function ConditionalRuleEditor() {
       <h1 className="text-xl font-semibold text-zinc-900">{isEdit ? 'Edit rule' : 'Create rule'}</h1>
 
       {/* Rule name */}
-      <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-3">
+      <div className="bg-white border border-zinc-200 p-5 space-y-3">
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Rule name</p>
         <input
           type="text"
           value={ruleName}
           onChange={e => setRuleName(e.target.value)}
           placeholder="e.g. Google paid traffic"
-          className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+          className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
         />
       </div>
 
       {/* Anchor condition */}
-      <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-4">
+      <div className="bg-white border border-zinc-200 p-5 space-y-4">
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Anchor condition</p>
         <div className="space-y-3">
           <div>
@@ -135,7 +135,7 @@ export default function ConditionalRuleEditor() {
             <select
               value={anchorParam}
               onChange={e => { setAnchorParam(e.target.value); setAnchorValue('') }}
-              className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+              className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
             >
               <option value="">Select parameter…</option>
               {parameters.map(p => <option key={p} value={p}>{p}</option>)}
@@ -148,7 +148,7 @@ export default function ConditionalRuleEditor() {
                 <select
                   value={anchorValue}
                   onChange={e => setAnchorValue(e.target.value)}
-                  className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
                 >
                   <option value="">Select value…</option>
                   {anchorAllowedValues.map(v => <option key={v} value={v}>{v}</option>)}
@@ -159,7 +159,7 @@ export default function ConditionalRuleEditor() {
                   value={anchorValue}
                   onChange={e => setAnchorValue(e.target.value)}
                   placeholder="Type anchor value…"
-                  className="w-full px-3 py-2 rounded-md border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                  className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
                 />
               )}
             </div>
@@ -175,7 +175,7 @@ export default function ConditionalRuleEditor() {
       </div>
 
       {/* Conditional parameters */}
-      <div className="bg-white rounded-lg border border-zinc-200 p-5 space-y-4">
+      <div className="bg-white border border-zinc-200 p-5 space-y-4">
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Conditional parameters</p>
         <p className="text-xs text-zinc-400">These parameters must match their allowed values when the anchor condition is true.</p>
 
@@ -183,7 +183,7 @@ export default function ConditionalRuleEditor() {
           <select
             value={addingParam}
             onChange={e => setAddingParam(e.target.value)}
-            className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+            className="flex-1 px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
           >
             <option value="">Add a parameter…</option>
             {parameters
@@ -200,7 +200,7 @@ export default function ConditionalRuleEditor() {
         </div>
 
         {Object.keys(conditionals).length === 0 ? (
-          <div className="border-2 border-dashed border-zinc-200 rounded-lg py-8 text-center">
+          <div className="border-2 border-dashed border-zinc-200 py-8 text-center">
             <p className="text-sm text-zinc-400">No conditional parameters added yet</p>
           </div>
         ) : (
@@ -208,7 +208,7 @@ export default function ConditionalRuleEditor() {
             {Object.entries(conditionals).map(([param, selectedValues]) => {
               const available = config?.allowedValues?.[param] || []
               return (
-                <div key={param} className="border border-zinc-200 rounded-lg p-4 space-y-3">
+                <div key={param} className="border border-zinc-200 p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-mono font-medium text-zinc-900">{param}</span>
                     <button
