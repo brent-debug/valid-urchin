@@ -6,74 +6,48 @@ const OrgContext = createContext(null)
 
 export function OrgProvider({ children }) {
   const { user } = useAuth()
-  const [orgs, setOrgs] = useState([])
-  const [currentOrg, setCurrentOrg] = useState(null)
+  const [org, setOrg] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!user) {
-      setOrgs([])
-      setCurrentOrg(null)
+      setOrg(null)
       setLoading(false)
       return
     }
-    fetchOrgs()
+    fetchOrg()
   }, [user])
 
-  async function fetchOrgs() {
+  async function fetchOrg() {
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const { data: membership, error: memberError } = await supabase
         .from('organization_members')
-        .select('role, organizations(*)')
+        .select('organization_id, role')
         .eq('user_id', user.id)
+        .single()
 
-      if (error) throw error
+      if (memberError) throw memberError
 
-      const orgList = data.map(row => ({ ...row.organizations, role: row.role }))
-      setOrgs(orgList)
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', membership.organization_id)
+        .single()
 
-      const saved = localStorage.getItem('currentOrgId')
-      const found = orgList.find(o => o.id === saved)
-      setCurrentOrg(found || orgList[0] || null)
+      if (orgError) throw orgError
+
+      setOrg({ ...orgData, role: membership.role })
     } catch (err) {
-      console.error('Failed to fetch orgs:', err)
+      console.error('Error fetching org:', err)
+      setOrg(null)
     } finally {
       setLoading(false)
     }
   }
 
-  function switchOrg(orgId) {
-    const org = orgs.find(o => o.id === orgId)
-    if (org) {
-      setCurrentOrg(org)
-      localStorage.setItem('currentOrgId', orgId)
-    }
-  }
-
-  async function createOrg(name, userId) {
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-
-    const { data: org, error: orgError } = await supabase
-      .from('organizations')
-      .insert({ name, slug })
-      .select()
-      .single()
-
-    if (orgError) throw orgError
-
-    const { error: memberError } = await supabase
-      .from('organization_members')
-      .insert({ organization_id: org.id, user_id: userId, role: 'owner' })
-
-    if (memberError) throw memberError
-
-    await fetchOrgs()
-    return org
-  }
-
   return (
-    <OrgContext.Provider value={{ orgs, currentOrg, loading, switchOrg, createOrg, refetch: fetchOrgs }}>
+    <OrgContext.Provider value={{ org, currentOrg: org, loading, refetch: fetchOrg }}>
       {children}
     </OrgContext.Provider>
   )

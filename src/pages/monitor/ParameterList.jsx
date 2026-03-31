@@ -53,7 +53,10 @@ export default function ParameterList() {
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" /></div>
+  const { loading: orgLoading } = useOrg()
+
+  if (loading || orgLoading) return <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" /></div>
+  if (!currentOrg) return <div className="text-center py-16 text-sm text-zinc-500">No organization found.</div>
 
   return (
     <div className="space-y-4">

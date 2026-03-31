@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 
 export default function TopBar({ onMenuClick }) {
   const { user, signOut } = useAuth()
-  const { orgs, currentOrg, switchOrg } = useOrg()
+  const { currentOrg } = useOrg()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -22,41 +22,8 @@ export default function TopBar({ onMenuClick }) {
           <Bars3Icon className="h-5 w-5" />
         </button>
 
-        {/* Org switcher */}
-        {orgs.length > 1 ? (
-          <Menu as="div" className="relative">
-            <Menu.Button className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-zinc-100 transition-colors">
-              <span className="text-sm font-medium text-zinc-900">{currentOrg?.name}</span>
-              <ChevronDownIcon className="h-4 w-4 text-zinc-500" />
-            </Menu.Button>
-            <Transition
-              as={Fragment}
-              enter="transition ease-out duration-100"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="transition ease-in duration-75"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Menu.Items className="absolute left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-zinc-200 py-1 z-50">
-                {orgs.map(org => (
-                  <Menu.Item key={org.id}>
-                    {({ active }) => (
-                      <button
-                        onClick={() => switchOrg(org.id)}
-                        className={`w-full text-left px-4 py-2 text-sm ${active ? 'bg-zinc-50' : ''} ${currentOrg?.id === org.id ? 'text-primary-700 font-medium' : 'text-zinc-700'}`}
-                      >
-                        {org.name}
-                      </button>
-                    )}
-                  </Menu.Item>
-                ))}
-              </Menu.Items>
-            </Transition>
-          </Menu>
-        ) : (
-          <span className="text-sm font-medium text-zinc-900">{currentOrg?.name}</span>
-        )}
+        {/* Org name */}
+        <span className="text-sm font-medium text-zinc-900">{currentOrg?.name}</span>
       </div>
 
       {/* User menu */}

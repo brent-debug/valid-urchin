@@ -4,6 +4,35 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
 
+const DEFAULT_CONFIG = {
+  monitoredParameters: {
+    utm_source: { active: true, status: 'active', created: new Date().toISOString() },
+    utm_medium: { active: true, status: 'active', created: new Date().toISOString() },
+    utm_campaign: { active: true, status: 'active', created: new Date().toISOString() },
+    utm_content: { active: false, status: 'draft', created: new Date().toISOString() },
+    utm_term: { active: false, status: 'draft', created: new Date().toISOString() },
+  },
+  allowedValues: {
+    utm_medium: ['cpc', 'email', 'organic', 'social', 'referral', 'display', 'video'],
+    utm_source: ['google', 'facebook', 'instagram', 'linkedin', 'twitter', 'bing', 'newsletter'],
+  },
+  casingRules: {
+    utm_source: 'lowercase',
+    utm_medium: 'lowercase',
+    utm_campaign: 'lowercase',
+  },
+  conditionalRules: [
+    {
+      id: 'rule_default_1',
+      name: 'utm_source = "google"',
+      anchor: { parameter: 'utm_source', value: 'google' },
+      conditionals: { utm_medium: ['cpc', 'organic'] },
+      createdAt: new Date().toISOString(),
+      active: true,
+    },
+  ],
+}
+
 export default function Signup() {
   const { signUp } = useAuth()
   const navigate = useNavigate()
@@ -18,29 +47,42 @@ export default function Signup() {
     setError('')
     setLoading(true)
     try {
+      // 1. Create Supabase auth user
       const { data, error: signUpError } = await signUp(email, password)
       if (signUpError) throw signUpError
 
       const userId = data.user?.id
       if (!userId) throw new Error('Signup succeeded but no user ID returned')
 
-      const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-
+      // 2. Create organization
+      const slug = orgName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '')
       const { data: org, error: orgError } = await supabase
         .from('organizations')
         .insert({ name: orgName, slug })
         .select()
         .single()
-
       if (orgError) throw orgError
 
+      // 3. Add user as owner
       const { error: memberError } = await supabase
         .from('organization_members')
-        .insert({ organization_id: org.id, user_id: userId, role: 'owner' })
-
+        .insert({
+          organization_id: org.id,
+          user_id: userId,
+          role: 'owner',
+          accepted_at: new Date().toISOString(),
+        })
       if (memberError) throw memberError
 
-      navigate('/dashboard')
+      // 4. Populate default UTM configuration
+      await fetch(`${import.meta.env.VITE_CONFIG_API_URL}?apiKey=${org.firestore_api_key}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(DEFAULT_CONFIG),
+      })
+
+      // 5. Navigate to app
+      navigate('/')
     } catch (err) {
       setError(err.message)
     } finally {

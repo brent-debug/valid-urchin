@@ -26,7 +26,7 @@ const navigation = [
     children: [
       { name: 'Organization', href: '/settings/organization' },
       { name: 'Team Members', href: '/settings/team' },
-      { name: 'API Keys', href: '/settings/api-keys' },
+      { name: 'Urchin Snippet', href: '/settings/api-keys' },
     ],
   },
 ]

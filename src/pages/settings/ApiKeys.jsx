@@ -4,43 +4,41 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { supabase } from '../../lib/supabase'
 import Button from '../../components/ui/Button'
 
-export default function ApiKeys() {
-  const { currentOrg, refetch } = useOrg()
+const TRACKER_URL = import.meta.env.VITE_TRACKER_URL || 'https://utm-tracker-839290050638.us-central1.run.app'
+
+export default function UrchinSnippet() {
+  const { currentOrg, loading: orgLoading, refetch } = useOrg()
   const { can } = usePermissions()
   const [copied, setCopied] = useState(false)
   const [copiedSnippet, setCopiedSnippet] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
   const [showKey, setShowKey] = useState(false)
 
-  const apiKey = currentOrg?.firestore_api_key || ''
+  if (orgLoading) return <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" /></div>
+  if (!currentOrg) return <div className="text-center py-16 text-sm text-zinc-500">No organization found.</div>
+
+  const urchinKey = currentOrg.firestore_api_key || ''
 
   const snippet = `<script>
-  (function() {
-    const apiKey = '${apiKey}';
-    const endpoint = 'https://utm-tracker-839290050638.us-central1.run.app';
-
-    function getUTMParams() {
-      const params = new URLSearchParams(window.location.search);
-      const utm = {};
-      ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(k => {
-        if (params.get(k)) utm[k] = params.get(k);
-      });
-      return utm;
-    }
-
-    const utmParams = getUTMParams();
-    if (Object.keys(utmParams).length > 0) {
-      fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey, url: window.location.href, utmParams }),
-      });
-    }
-  })();
-<\/script>`
+(function() {
+  var apiKey = '${urchinKey}';
+  var params = new URLSearchParams(window.location.search);
+  var utmParams = {};
+  ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(function(p) {
+    if (params.get(p)) utmParams[p] = params.get(p);
+  });
+  if (Object.keys(utmParams).length > 0) {
+    fetch('${TRACKER_URL}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey: apiKey, url: window.location.href, timestamp: new Date().toISOString(), utmParameters: utmParams })
+    });
+  }
+})();
+</script>`
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(apiKey)
+    navigator.clipboard.writeText(urchinKey)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -52,7 +50,7 @@ export default function ApiKeys() {
   }
 
   const handleRegenerate = async () => {
-    if (!confirm('Regenerating the API key will break any existing website snippets. Proceed?')) return
+    if (!confirm('Regenerating the Urchin Key will break any existing website snippets. Proceed?')) return
     setRegenerating(true)
     try {
       const newKey = crypto.randomUUID()
@@ -71,16 +69,16 @@ export default function ApiKeys() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* API Key */}
+      {/* Urchin Key */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4">
         <div>
-          <h2 className="text-sm font-semibold text-zinc-900">API Key</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">This key identifies your organization. Keep it private.</p>
+          <h2 className="text-sm font-semibold text-zinc-900">Urchin Key</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">This key identifies your organization. Keep it private — it's embedded in your website snippet.</p>
         </div>
         <div className="flex items-center gap-2">
           <input
             type={showKey ? 'text' : 'password'}
-            value={apiKey}
+            value={urchinKey}
             readOnly
             className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 text-sm font-mono bg-zinc-50"
           />
@@ -101,10 +99,10 @@ export default function ApiKeys() {
         )}
       </div>
 
-      {/* Embed snippet */}
+      {/* Urchin Snippet */}
       <div className="bg-white rounded-2xl border border-zinc-200 p-6 space-y-4">
         <div>
-          <h2 className="text-sm font-semibold text-zinc-900">Website snippet</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">Urchin Snippet</h2>
           <p className="text-xs text-zinc-500 mt-0.5">Paste this in the <code className="bg-zinc-100 px-1 rounded">&lt;head&gt;</code> of every page you want to track.</p>
         </div>
         <div className="relative">

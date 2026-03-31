@@ -10,7 +10,7 @@ import Modal from '../../components/ui/Modal'
 const ROLES = ['owner', 'admin', 'member', 'viewer']
 
 export default function TeamMembers() {
-  const { currentOrg } = useOrg()
+  const { currentOrg, loading: orgLoading } = useOrg()
   const { user } = useAuth()
   const { can } = usePermissions()
   const [members, setMembers] = useState([])
@@ -84,6 +84,9 @@ export default function TeamMembers() {
     await supabase.from('invitations').delete().eq('id', inviteId)
     await loadInvitations()
   }
+
+  if (orgLoading) return <div className="flex items-center justify-center py-16"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" /></div>
+  if (!currentOrg) return <div className="text-center py-16 text-sm text-zinc-500">No organization found.</div>
 
   return (
     <div className="space-y-6 max-w-3xl">
