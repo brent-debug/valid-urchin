@@ -57,6 +57,32 @@ export function OrgProvider({ children }) {
       } catch (e) {
         console.warn('Count query failed:', e)
       }
+
+      // Fetch additional org fields
+      try {
+        const { data: extraData } = await supabase
+          .from('organizations')
+          .select('format_standards, conflict_threshold, timezone')
+          .eq('id', orgData.id)
+          .single()
+
+        setOrg(prev => ({
+          ...prev,
+          formatStandards: extraData?.format_standards || {},
+          conflictThreshold: extraData?.conflict_threshold || 1,
+          timezone: extraData?.timezone || 'America/New_York'
+        }))
+
+        // Fetch conflict resolution rules
+        const { data: resRules } = await supabase
+          .from('conflict_resolution_rules')
+          .select('*')
+          .eq('organization_id', orgData.id)
+
+        setOrg(prev => ({ ...prev, resolutionRules: resRules || [] }))
+      } catch (e) {
+        console.warn('Extra org fields fetch failed:', e)
+      }
     } catch (err) {
       console.error('Error fetching org:', err)
       setOrg(null)

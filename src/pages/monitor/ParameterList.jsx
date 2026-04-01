@@ -7,6 +7,7 @@ import { saveConfiguration } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import Modal from '../../components/ui/Modal'
 import Badge from '../../components/ui/Badge'
+import FormatStandards from './FormatStandards'
 
 function Spinner() {
   return (
@@ -196,6 +197,7 @@ export default function MonitorSettings() {
     { key: 'params', label: 'Parameters', href: '/monitor/parameters' },
     { key: 'rules', label: 'Conditional Rules', href: '/monitor/rules' },
     { key: 'issues', label: 'Rule Issues', href: '/monitor/rules' },
+    { key: 'standards', label: 'Format Standards', href: '/monitor/parameters' },
   ]
 
   return (
@@ -239,6 +241,7 @@ export default function MonitorSettings() {
             <PlusIcon className="h-4 w-4" /> Create rule
           </button>
         ) : null}
+
       </div>
 
       {/* Parameters tab */}
@@ -488,6 +491,9 @@ export default function MonitorSettings() {
           )}
         </div>
       )}
+
+      {/* Format Standards tab */}
+      {activeTab === 'standards' && <FormatStandards />}
 
       {/* Add parameter modal */}
       <Modal open={showAdd} onClose={() => { setShowAdd(false); setNewParamName(''); setAddError('') }} title="Add parameter">

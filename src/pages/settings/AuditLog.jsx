@@ -41,6 +41,7 @@ export default function AuditLog() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(false)
+  const [expandedRow, setExpandedRow] = useState(null)
 
   // Filters
   const [emailFilter, setEmailFilter] = useState('')
@@ -139,24 +140,46 @@ export default function AuditLog() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(row => (
-                <tr key={row.id} className="border-b border-zinc-50 hover:bg-zinc-50">
-                  <td className="px-5 py-3 text-sm text-zinc-500 whitespace-nowrap">
-                    {new Date(row.created_at).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </td>
-                  <td className="px-5 py-3 text-sm text-zinc-700">{row.user_email || '—'}</td>
-                  <td className="px-5 py-3 text-sm text-zinc-900">
-                    {ACTION_LABELS[row.action] || row.action}
-                  </td>
-                  <td className="px-5 py-3 text-sm text-zinc-500 max-w-xs truncate">
-                    {row.entity_name || row.entity_id || JSON.stringify(row.metadata || {}).slice(0, 60)}
-                  </td>
-                </tr>
+              {filtered.map(log => (
+                <>
+                  <tr
+                    key={log.id}
+                    className={`border-b border-zinc-50 hover:bg-zinc-50 ${log.metadata?.note ? 'cursor-pointer' : ''}`}
+                    onClick={() => log.metadata?.note ? setExpandedRow(expandedRow === log.id ? null : log.id) : null}
+                  >
+                    <td className="px-5 py-3 text-sm text-zinc-500 whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td className="px-5 py-3 text-sm text-zinc-700">{log.user_email || '—'}</td>
+                    <td className="px-5 py-3 text-sm text-zinc-900">
+                      {ACTION_LABELS[log.action] || log.action}
+                    </td>
+                    <td className="px-5 py-3 text-sm text-zinc-500 max-w-xs truncate">
+                      {log.entity_name || log.entity_id || JSON.stringify(log.metadata || {}).slice(0, 60)}
+                      {log.metadata?.note && <span className="ml-1 text-zinc-400" title={log.metadata.note}>💬</span>}
+                    </td>
+                  </tr>
+                  {expandedRow === log.id && log.metadata?.note && (
+                    <tr key={`${log.id}-detail`}>
+                      <td colSpan={4} className="px-4 pb-3 bg-zinc-50">
+                        <div className="p-3 text-sm text-zinc-700 border border-zinc-200">
+                          <span className="font-medium text-zinc-500 text-xs uppercase tracking-wide block mb-1">Note</span>
+                          <p>{log.metadata.note}</p>
+                          {log.metadata.autoResolveDays !== undefined && log.metadata.autoResolveDays !== null && (
+                            <p className="mt-2 text-zinc-400 text-xs">
+                              Auto-resolve: {log.metadata.autoResolveDays === null ? 'indefinitely' : `${log.metadata.autoResolveDays} days`}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>

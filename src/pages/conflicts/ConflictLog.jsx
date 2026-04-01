@@ -3,9 +3,9 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useOrg } from '../../contexts/OrgContext'
 import { useConfiguration } from '../../hooks/useConfiguration'
-import { saveConfiguration } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import { writeAuditLog } from '../../lib/auditLog'
+import { getAutoResolveRule } from '../../lib/conflictHelpers'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import EmptyState from '../../components/ui/EmptyState'
@@ -49,7 +49,8 @@ export default function ConflictLog() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [timeRange, setTimeRange] = useState(TIME_RANGES[2])
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('open')
+  const [sortBy, setSortBy] = useState('recent')
   const [domainFilter, setDomainFilter] = useState('all')
   const [expanded, setExpanded] = useState({})
 
@@ -62,6 +63,7 @@ export default function ConflictLog() {
   // Modals
   const [resolveModalKey, setResolveModalKey] = useState(null)
   const [resolveNote, setResolveNote] = useState('')
+  const [autoResolveDays, setAutoResolveDays] = useState('')
   const [flagModalKey, setFlagModalKey] = useState(null)
   const [flagDescription, setFlagDescription] = useState('')
 
@@ -69,6 +71,9 @@ export default function ConflictLog() {
   const [openMenu, setOpenMenu] = useState(null) // stores the groupKey
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
   const menuRef = useRef(null)
+
+  // Allow value animation state
+  const [allowedKeys, setAllowedKeys] = useState({}) // groupKey → 'success' | 'fading' | 'gone'
 
   useEffect(() => {
     if (!apiKey) return
@@ -169,41 +174,95 @@ export default function ConflictLog() {
     violationGroups[key].conflicts.push(c)
   })
 
+  // Apply conflict threshold
+  const threshold = currentOrg?.conflictThreshold || 1
+  const filteredGroupEntries = Object.entries(violationGroups).filter(
+    ([, group]) => group.conflicts.length >= threshold
+  )
+
+  // Sort entries
+  const sortedGroupEntries = [...filteredGroupEntries].sort(([, a], [, b]) => {
+    if (sortBy === 'volume') {
+      return b.conflicts.length - a.conflicts.length
+    }
+    // Recent: sort by most recent validationTimestamp
+    const getMostRecent = (group) => group.conflicts.reduce((latest, c) => {
+      const ts = c.validationTimestamp
+      const t = ts?.toDate?.() ?? (ts ? new Date(ts) : null)
+      if (!t || isNaN(t)) return latest
+      return !latest || t > latest ? t : latest
+    }, null)
+    const aRecent = getMostRecent(a)
+    const bRecent = getMostRecent(b)
+    if (!aRecent && !bRecent) return 0
+    if (!aRecent) return 1
+    if (!bRecent) return -1
+    return bRecent - aRecent
+  })
+
   const totalViolations = filtered.length
   const unresolved = filtered.filter(c => !c.resolved).length
-  const groupCount = Object.keys(violationGroups).length
-
-  const [allowedKeys, setAllowedKeys] = useState({}) // groupKey → true (fading out)
+  const groupCount = sortedGroupEntries.length
 
   const handleAllow = async (_conflict, reason) => {
     if (!config) return
     const { parameter, value } = reason
     const groupKey = `${parameter}:${value}`
-    const current = config.allowedValues?.[parameter] || []
-    if (current.includes(value)) return
-    const { data: { user } } = await supabase.auth.getUser()
-    await saveConfiguration(apiKey, {
-      ...config,
-      allowedValues: { ...config.allowedValues, [parameter]: [...current, value] },
-    })
-    await writeAuditLog({
-      organizationId: currentOrg.id,
-      userId: user?.id,
-      userEmail: user?.email,
-      action: 'conflict_allowed',
-      entityType: 'conflict',
-      entityId: groupKey,
-      metadata: { parameter, value },
-    })
-    await reloadConfig()
-    // Show success state then fade out
-    setAllowedKeys(prev => ({ ...prev, [groupKey]: 'success' }))
-    setTimeout(() => {
-      setAllowedKeys(prev => ({ ...prev, [groupKey]: 'fading' }))
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      // Fetch fresh config to avoid stale state
+      const freshConfigResp = await fetch(
+        `${import.meta.env.VITE_CONFIG_API_URL}?apiKey=${apiKey}`
+      )
+      if (!freshConfigResp.ok) throw new Error(`Config fetch failed: ${freshConfigResp.status}`)
+      const freshConfig = await freshConfigResp.json()
+
+      const currentValues = freshConfig.allowedValues?.[parameter] || []
+      if (!currentValues.includes(value)) {
+        const writeResp = await fetch(
+          `${import.meta.env.VITE_CONFIG_API_URL}?apiKey=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...freshConfig,
+              allowedValues: {
+                ...freshConfig.allowedValues,
+                [parameter]: [...currentValues, value]
+              }
+            })
+          }
+        )
+        if (!writeResp.ok) throw new Error(`Config write failed: ${writeResp.status}`)
+      }
+
+      await supabase.from('conflict_resolutions').insert({
+        organization_id: currentOrg.id,
+        conflict_id: groupKey,
+        resolution_type: 'allowed',
+        resolved_by: user.id,
+        resolved_by_email: user.email,
+      })
+      await writeAuditLog({
+        organizationId: currentOrg.id,
+        userId: user?.id,
+        userEmail: user?.email,
+        action: 'conflict_allowed',
+        entityType: 'conflict',
+        entityId: groupKey,
+        metadata: { source: 'conflict_log', parameter, value },
+      })
+      await reloadConfig()
+      // Show success then fade out
+      setAllowedKeys(prev => ({ ...prev, [groupKey]: 'success' }))
       setTimeout(() => {
-        setAllowedKeys(prev => ({ ...prev, [groupKey]: 'gone' }))
-      }, 400)
-    }, 1800)
+        setAllowedKeys(prev => ({ ...prev, [groupKey]: 'fading' }))
+        setTimeout(() => setAllowedKeys(prev => ({ ...prev, [groupKey]: 'gone' })), 400)
+      }, 1800)
+    } catch (err) {
+      console.error('Allow value failed:', err)
+      alert(`Failed to allow value: ${err.message}`)
+    }
   }
 
   const toggleExpand = (key) => setExpanded(p => ({ ...p, [key]: !p[key] }))
@@ -211,6 +270,7 @@ export default function ConflictLog() {
   function openResolveModal(groupKey) {
     setResolveModalKey(groupKey)
     setResolveNote('')
+    setAutoResolveDays('')
   }
 
   async function handleResolveConfirm() {
@@ -230,11 +290,32 @@ export default function ConflictLog() {
       action: 'conflict_resolved',
       entityType: 'conflict',
       entityId: resolveModalKey,
-      metadata: { note: resolveNote },
+      metadata: { note: resolveNote, autoResolveDays: autoResolveDays !== '' ? (autoResolveDays === '0' ? null : parseInt(autoResolveDays)) : undefined },
     })
+
+    if (autoResolveDays !== '') {
+      const expiresAt = autoResolveDays === '0'
+        ? null
+        : new Date(Date.now() + parseInt(autoResolveDays) * 86400000).toISOString()
+      // Get parameter and value from the groupKey (format: "parameter:value")
+      const [parameter, ...valueParts] = resolveModalKey.split(':')
+      const value = valueParts.join(':')
+      await supabase.from('conflict_resolution_rules').insert({
+        organization_id: currentOrg.id,
+        parameter,
+        value,
+        resolution_type: 'resolved',
+        auto_resolve_days: autoResolveDays === '0' ? null : parseInt(autoResolveDays),
+        created_by: user.id,
+        created_by_email: user.email,
+        expires_at: expiresAt
+      })
+    }
+
     setResolutions(prev => ({ ...prev, [resolveModalKey]: { resolution_type: 'resolved' } }))
     setResolveModalKey(null)
     setResolveNote('')
+    setAutoResolveDays('')
   }
 
   async function handleFlagConfirm() {
@@ -304,15 +385,6 @@ export default function ConflictLog() {
           {TIME_RANGES.map(t => <option key={t.label}>{t.label}</option>)}
         </select>
         <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
-        >
-          <option value="all">All</option>
-          <option value="open">Open</option>
-          <option value="resolved">Resolved</option>
-        </select>
-        <select
           value={domainFilter}
           onChange={e => setDomainFilter(e.target.value)}
           className="px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
@@ -321,6 +393,43 @@ export default function ConflictLog() {
           {uniqueDomains.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         <Button variant="secondary" size="sm" onClick={loadConflicts}>Refresh</Button>
+      </div>
+
+      {/* Status pills */}
+      <div className="flex items-center gap-4">
+        <div className="inline-flex bg-zinc-100 rounded-full p-1">
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'open', label: 'Open' },
+            { key: 'resolved', label: 'Resolved' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                statusFilter === key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="inline-flex bg-zinc-100 rounded-full p-1">
+          {[
+            { key: 'recent', label: 'Recent' },
+            { key: 'volume', label: 'Volume' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setSortBy(key)}
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                sortBy === key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Rule Issues section */}
@@ -355,11 +464,11 @@ export default function ConflictLog() {
         <div className="flex items-center justify-center py-16">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600" />
         </div>
-      ) : Object.keys(violationGroups).length === 0 ? (
+      ) : sortedGroupEntries.length === 0 ? (
         <EmptyState icon="✅" title="No conflicts found" description="No UTM violations match your current filters." />
       ) : (
         <div className="space-y-2">
-          {Object.entries(violationGroups).map(([key, group]) => {
+          {sortedGroupEntries.map(([key, group]) => {
             const isOpen = expanded[key]
             const occurrences = group.conflicts.length
             const resolution = resolutions[key]
@@ -368,6 +477,17 @@ export default function ConflictLog() {
             const allowState = allowedKeys[key]
 
             if (allowState === 'gone') return null
+
+            // Check for auto-resolve rule
+            const autoResolveRule = getAutoResolveRule(group.parameter, group.value, currentOrg?.resolutionRules || [])
+
+            // Most recent timestamp in group
+            const mostRecent = group.conflicts.reduce((latest, c) => {
+              const ts = c.validationTimestamp
+              const t = ts?.toDate?.() ?? (ts ? new Date(ts) : null)
+              if (!t || isNaN(t)) return latest
+              return !latest || t > latest ? t : latest
+            }, null)
 
             return (
               <div
@@ -391,10 +511,19 @@ export default function ConflictLog() {
                       <span className="text-xs text-zinc-400">received</span>
                       <span className="text-sm font-mono font-medium text-red-600 bg-red-50 px-1.5 py-0.5">{group.value}</span>
                     </div>
-                    <p className="text-xs text-zinc-400 mt-1">{occurrences} occurrence{occurrences !== 1 ? 's' : ''}</p>
+                    <p className="text-xs text-zinc-400 mt-1">
+                      {occurrences} occurrence{occurrences !== 1 ? 's' : ''}
+                      {mostRecent && <span className="ml-2">· Last: {formatTime(mostRecent.toISOString())}</span>}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
                     <Badge variant="error">{occurrences}</Badge>
+
+                    {autoResolveRule && !isResolved && !isFlagged && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                        Auto-resolved
+                      </span>
+                    )}
 
                     {isResolved && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
@@ -407,7 +536,7 @@ export default function ConflictLog() {
                       </span>
                     )}
 
-                    {!isResolved && !isFlagged && (
+                    {!isResolved && !isFlagged && !autoResolveRule && (
                       <>
                         <button
                           onClick={() => openResolveModal(key)}
@@ -498,7 +627,7 @@ export default function ConflictLog() {
       {/* Mark Resolved modal */}
       <Modal
         open={resolveModalKey !== null}
-        onClose={() => { setResolveModalKey(null); setResolveNote('') }}
+        onClose={() => { setResolveModalKey(null); setResolveNote(''); setAutoResolveDays('') }}
         title="Mark as resolved"
       >
         <div className="space-y-4">
@@ -515,9 +644,23 @@ export default function ConflictLog() {
               className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Auto-resolve future occurrences</label>
+            <select value={autoResolveDays} onChange={e => setAutoResolveDays(e.target.value)}
+              className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600">
+              <option value="">Don't auto-resolve</option>
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+              <option value="0">Indefinitely</option>
+            </select>
+            <p className="text-xs text-zinc-400 mt-1">New occurrences within this window will be auto-resolved</p>
+          </div>
           <div className="flex justify-end gap-2">
             <button
-              onClick={() => { setResolveModalKey(null); setResolveNote('') }}
+              onClick={() => { setResolveModalKey(null); setResolveNote(''); setAutoResolveDays('') }}
               className="bg-white text-zinc-700 border border-zinc-200 rounded-full px-4 py-2 text-sm hover:bg-zinc-50"
             >
               Cancel

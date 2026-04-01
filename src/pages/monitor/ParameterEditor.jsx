@@ -7,6 +7,7 @@ import { saveConfiguration } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import Badge from '../../components/ui/Badge'
 import { writeAuditLog } from '../../lib/auditLog'
+import { validateAgainstFormatStandards } from '../../lib/formatValidator'
 
 function Spinner() {
   return (
@@ -33,6 +34,7 @@ export default function ParameterEditor() {
   const [caseSensitive, setCaseSensitive] = useState(false)
   const [status, setStatus] = useState('draft')
   const [saving, setSaving] = useState(false)
+  const [formatViolations, setFormatViolations] = useState([])
 
   // Applied domains state
   const [availableDomains, setAvailableDomains] = useState([])
@@ -124,6 +126,20 @@ export default function ParameterEditor() {
   const handleAddValue = async () => {
     const v = newValue.trim()
     if (!v || allowedValues.includes(v)) return
+
+    // Validate against format standards
+    const standards = currentOrg?.formatStandards || {}
+    if (Object.keys(standards).length > 0) {
+      const violations = validateAgainstFormatStandards(v, standards)
+      if (violations.length > 0) {
+        setFormatViolations(violations) // show inline
+        // Don't block — just warn. Let user proceed.
+      } else {
+        setFormatViolations([])
+      }
+    }
+
+    // proceed with save regardless (format standards are advisory)
     const updated = [...allowedValues, v]
     setAllowedValues(updated)
     setNewValue('')
@@ -298,7 +314,7 @@ export default function ParameterEditor() {
               <input
                 type="text"
                 value={newValue}
-                onChange={e => setNewValue(e.target.value)}
+                onChange={e => { setNewValue(e.target.value); setFormatViolations([]) }}
                 onKeyDown={e => e.key === 'Enter' && handleAddValue()}
                 placeholder="Add a value…"
                 className="flex-1 px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
@@ -311,6 +327,11 @@ export default function ParameterEditor() {
                 Add
               </button>
             </div>
+            {formatViolations.length > 0 && (
+              <div className="mt-1 text-xs text-amber-600">
+                Format warning: {formatViolations.join(', ')}
+              </div>
+            )}
 
             {/* Values list */}
             {allowedValues.length === 0 ? (

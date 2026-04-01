@@ -26,6 +26,11 @@ export default function OrganizationSettings() {
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
 
+  // Conflict settings
+  const [conflictThreshold, setConflictThreshold] = useState(currentOrg?.conflictThreshold || 1)
+  const [savingThreshold, setSavingThreshold] = useState(false)
+  const [thresholdMessage, setThresholdMessage] = useState('')
+
   // Danger zone
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [confirmName, setConfirmName] = useState('')
@@ -38,6 +43,7 @@ export default function OrganizationSettings() {
   useEffect(() => {
     if (currentOrg?.name) setName(currentOrg.name)
     if (currentOrg?.timezone) setTimezone(currentOrg.timezone)
+    if (currentOrg?.conflictThreshold !== undefined) setConflictThreshold(currentOrg.conflictThreshold)
   }, [currentOrg])
 
   useEffect(() => {
@@ -79,6 +85,30 @@ export default function OrganizationSettings() {
       setSaveMessage(`Error: ${err.message}`)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const saveConflictSettings = async () => {
+    setSavingThreshold(true)
+    setThresholdMessage('')
+    try {
+      const { error } = await supabase.from('organizations').update({ conflict_threshold: conflictThreshold }).eq('id', currentOrg.id)
+      if (error) throw error
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      await writeAuditLog({
+        organizationId: currentOrg.id,
+        userId: currentUser?.id,
+        userEmail: currentUser?.email,
+        action: 'org_settings_updated',
+        entityType: 'account',
+        metadata: { field: 'conflict_threshold', newValue: conflictThreshold }
+      })
+      setThresholdMessage('Saved.')
+      await refetch()
+    } catch (err) {
+      setThresholdMessage(`Error: ${err.message}`)
+    } finally {
+      setSavingThreshold(false)
     }
   }
 
@@ -183,6 +213,38 @@ export default function OrganizationSettings() {
           className="opacity-50 cursor-not-allowed bg-white text-zinc-700 border border-zinc-200 px-4 py-2 text-sm"
         >
           Request Export
+        </button>
+      </div>
+
+      {/* Conflict Settings */}
+      <div className="border border-zinc-200 p-6 space-y-4 bg-white">
+        <h2 className="text-sm font-semibold text-zinc-900">Conflict Settings</h2>
+        <p className="text-sm text-zinc-500">Control when conflicts are surfaced to reduce noise from bots and one-off errors.</p>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">
+            Minimum occurrences to surface a conflict
+          </label>
+          <p className="text-xs text-zinc-400 mb-2">Conflicts must occur at least this many times before appearing in the conflict log.</p>
+          <select
+            value={conflictThreshold}
+            onChange={e => setConflictThreshold(parseInt(e.target.value))}
+            className="px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+          >
+            <option value={1}>1 (show all)</option>
+            <option value={2}>2</option>
+            <option value={3}>3</option>
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+          </select>
+        </div>
+        {thresholdMessage && <p className={`text-sm ${thresholdMessage.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{thresholdMessage}</p>}
+        <button
+          onClick={saveConflictSettings}
+          disabled={savingThreshold}
+          className="bg-teal-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+        >
+          {savingThreshold ? 'Saving…' : 'Save'}
         </button>
       </div>
 
