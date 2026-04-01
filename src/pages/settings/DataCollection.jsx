@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useOrg } from '../../contexts/OrgContext'
 import { useAuth } from '../../contexts/AuthContext'
@@ -21,11 +21,33 @@ function normalizeDomain(input) {
   } catch { return null }
 }
 
+const SECTIONS = [
+  { id: 'snippet', label: 'Tracking Snippet' },
+  { id: 'domains', label: 'Allowed Domains' },
+  { id: 'parameters', label: 'Trigger Parameters' },
+]
+
 export default function DataCollection() {
   const { currentOrg, refetch } = useOrg()
   const { user } = useAuth()
   const { isAdmin, isManager } = usePermissions()
   const canManage = isAdmin || isManager
+  const [activeSection, setActiveSection] = useState('snippet')
+  const sectionRefs = useRef({})
+
+  useEffect(() => {
+    const observers = {}
+    SECTIONS.forEach(({ id }) => {
+      const el = sectionRefs.current[id]
+      if (!el) return
+      observers[id] = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveSection(id) },
+        { rootMargin: '-20% 0px -60% 0px' }
+      )
+      observers[id].observe(el)
+    })
+    return () => Object.values(observers).forEach(o => o.disconnect())
+  }, [])
 
   // Snippet
   const [copiedKey, setCopiedKey] = useState(false)
@@ -186,14 +208,39 @@ export default function DataCollection() {
   if (!currentOrg) return null
 
   return (
-    <div className="space-y-10 max-w-3xl">
+    <div className="flex gap-8 max-w-4xl">
+      {/* Sticky sidebar nav */}
+      <div className="w-44 flex-shrink-0">
+        <nav className="sticky top-6 space-y-1">
+          {SECTIONS.map(({ id, label }) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              onClick={e => {
+                e.preventDefault()
+                sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+              className={`block text-sm py-1 border-l-2 pl-3 transition-colors ${
+                activeSection === id
+                  ? 'border-teal-600 text-teal-700 font-medium'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-900'
+              }`}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 min-w-0 space-y-10">
       <div>
         <h1 className="text-xl font-semibold text-zinc-900">Data Collection</h1>
         <p className="text-sm text-zinc-500 mt-1">Configure how ValidUrchin collects data from your website.</p>
       </div>
 
       {/* ── Section 1: Tracking Snippet ── */}
-      <section className="space-y-4">
+      <section id="snippet" ref={el => sectionRefs.current['snippet'] = el} className="space-y-4 scroll-mt-6">
         <div>
           <h2 className="text-base font-semibold text-zinc-900">Tracking Snippet</h2>
           <p className="text-sm text-zinc-500 mt-0.5">
@@ -245,7 +292,7 @@ export default function DataCollection() {
       <div className="border-t border-zinc-200" />
 
       {/* ── Section 2: Allowed Domains ── */}
-      <section className="space-y-4">
+      <section id="domains" ref={el => sectionRefs.current['domains'] = el} className="space-y-4 scroll-mt-6">
         <div>
           <h2 className="text-base font-semibold text-zinc-900">Allowed Domains</h2>
           <p className="text-sm text-zinc-500 mt-0.5">
@@ -363,7 +410,7 @@ export default function DataCollection() {
       <div className="border-t border-zinc-200" />
 
       {/* ── Section 3: Trigger Parameters ── */}
-      <section className="space-y-4">
+      <section id="parameters" ref={el => sectionRefs.current['parameters'] = el} className="space-y-4 scroll-mt-6">
         <div>
           <h2 className="text-base font-semibold text-zinc-900">Trigger Parameters</h2>
           <p className="text-sm text-zinc-500 mt-0.5">
@@ -448,6 +495,7 @@ export default function DataCollection() {
           )}
         </div>
       </section>
+      </div>
     </div>
   )
 }

@@ -19,6 +19,7 @@ import UserManagement from './pages/settings/UserManagement'
 import UserProfile from './pages/settings/UserProfile'
 import AuditLog from './pages/settings/AuditLog'
 import DataCollection from './pages/settings/DataCollection'
+import Help from './pages/Help'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -65,6 +66,9 @@ function AppRoutes() {
         <Route path="settings/profile" element={<UserProfile />} />
         <Route path="settings/audit-log" element={<AuditLog />} />
         <Route path="settings/data-collection" element={<DataCollection />} />
+        {/* Help */}
+        <Route path="help" element={<Help />} />
+
         {/* Legacy redirects */}
         <Route path="settings/domains" element={<Navigate to="/settings/data-collection" replace />} />
         <Route path="settings/api-keys" element={<Navigate to="/settings/data-collection" replace />} />

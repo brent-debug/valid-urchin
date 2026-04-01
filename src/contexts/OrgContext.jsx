@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { db } from '../lib/firebase'
-import { collection, query, where, getCountFromServer, getDocs } from 'firebase/firestore'
+import { collection, query, where, getCountFromServer, getDocs, orderBy, limit } from 'firebase/firestore'
 
 const OrgContext = createContext(null)
 
@@ -40,19 +40,36 @@ export function OrgProvider({ children }) {
       if (orgError) throw orgError
 
       setOrg({ ...orgData, role: membership.role })
+      // Events count — try getCountFromServer first, fall back to getDocs
       try {
         const periodStart = new Date()
         periodStart.setDate(1)
         periodStart.setHours(0, 0, 0, 0)
-        const eventsSnap = await getCountFromServer(
-          query(collection(db, `organizations/${orgData.firestore_api_key}/utm_events`),
-                where('receivedAt', '>=', periodStart.toISOString()))
+        const eventsQuery = query(
+          collection(db, `organizations/${orgData.firestore_api_key}/utm_events`),
+          where('receivedAt', '>=', periodStart.toISOString())
         )
+        let eventCount = 0
+        try {
+          const countSnap = await getCountFromServer(eventsQuery)
+          eventCount = countSnap.data().count
+        } catch {
+          const fallbackSnap = await getDocs(eventsQuery)
+          eventCount = fallbackSnap.size
+        }
+        setOrg(prev => ({ ...prev, eventCount }))
+      } catch (e) {
+        console.warn('Events count query failed:', e)
+      }
+
+      // Conflicts count — separate try/catch
+      try {
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        // Fetch conflict docs to count unique source events
         const conflictDocs = await getDocs(
-          query(collection(db, `organizations/${orgData.firestore_api_key}/conflicts`),
-                where('validationTimestamp', '>=', thirtyDaysAgo.toISOString()))
+          query(
+            collection(db, `organizations/${orgData.firestore_api_key}/conflicts`),
+            where('validationTimestamp', '>=', thirtyDaysAgo.toISOString())
+          )
         )
         const uniqueEventPaths = new Set()
         conflictDocs.forEach(doc => {
@@ -61,12 +78,11 @@ export function OrgProvider({ children }) {
         })
         setOrg(prev => ({
           ...prev,
-          eventCount: eventsSnap.data().count,
           conflictCount: conflictDocs.size,
           eventsWithConflicts: uniqueEventPaths.size,
         }))
       } catch (e) {
-        console.warn('Count query failed:', e)
+        console.warn('Conflicts count query failed:', e)
       }
 
       // Fetch additional org fields

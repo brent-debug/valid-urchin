@@ -10,6 +10,7 @@ import {
   UserIcon,
   ClipboardDocumentListIcon,
   ServerStackIcon,
+  AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline'
 import { useOrg } from '../../contexts/OrgContext'
 import { usePermissions } from '../../hooks/usePermissions'
@@ -61,10 +62,12 @@ export default function Sidebar({ onClose }) {
 
   const subLinkClass = (href) => {
     const active = location.pathname.startsWith(href)
-    return `flex items-center pl-7 pr-3 py-1.5 text-sm transition-colors ${
-      active ? 'text-teal-700 font-medium' : 'text-zinc-500 hover:text-zinc-900'
+    return `flex items-center pl-10 pr-3 py-1.5 text-sm transition-colors ${
+      active ? 'bg-teal-50 text-teal-700 font-medium' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
     }`
   }
+
+  const monitorActive = location.pathname.startsWith('/monitor')
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-zinc-200">
@@ -92,7 +95,10 @@ export default function Sidebar({ onClose }) {
 
           {/* Monitor Settings — label only, not a link */}
           <li className="pt-2">
-            <div className="px-3 py-1 text-xs font-semibold text-zinc-400 uppercase tracking-wider select-none cursor-default">
+            <div className={`flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-wider select-none cursor-default ${
+              monitorActive ? 'text-teal-600' : 'text-zinc-400'
+            }`}>
+              <AdjustmentsHorizontalIcon className="h-3.5 w-3.5 flex-shrink-0" />
               Monitor Settings
             </div>
             <ul className="mt-0.5 space-y-0.5">

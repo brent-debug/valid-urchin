@@ -36,7 +36,7 @@ function formatTime(raw) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function buildChartData(conflicts, events) {
+function buildChartData(conflicts, events, days = 11) {
   const conflictDays = {}
   conflicts.forEach(c => {
     const raw = c.validationTimestamp
@@ -57,7 +57,7 @@ function buildChartData(conflicts, events) {
   })
 
   const result = []
-  for (let i = 11; i >= 0; i--) {
+  for (let i = days; i >= 0; i--) {
     const d = new Date()
     d.setDate(d.getDate() - i)
     const key = d.toISOString().slice(0, 10)
@@ -68,6 +68,23 @@ function buildChartData(conflicts, events) {
     result.push({ key, label, count, eventCount, errorRate })
   }
   return result
+}
+
+function getDomain(url) {
+  if (!url) return 'unknown'
+  try { return new URL(url).hostname } catch { return url }
+}
+
+function buildDomainBreakdown(events) {
+  const counts = {}
+  events.forEach(e => {
+    const d = getDomain(e.url)
+    counts[d] = (counts[d] || 0) + 1
+  })
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([domain, count]) => ({ domain, count }))
 }
 
 export default function Dashboard() {
@@ -92,15 +109,16 @@ export default function Dashboard() {
         ))
         setConflicts(conflictsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
 
-        // Fetch events for the last 12 days (no orderBy to avoid index requirement)
-        const twelveDAgo = new Date()
-        twelveDAgo.setDate(twelveDAgo.getDate() - 12)
+        // Fetch events for the last 30 days (no orderBy to avoid index requirement)
+        const thirtyDAgo = new Date()
+        thirtyDAgo.setDate(thirtyDAgo.getDate() - 30)
         const eventsSnap = await getDocs(
           collection(db, `organizations/${apiKey}/utm_events`)
         )
         const recentEvents = eventsSnap.docs
-          .map(d => d.data())
-          .filter(e => e.receivedAt && new Date(e.receivedAt) >= twelveDAgo)
+          .map(d => ({ id: d.id, path: d.ref.path, ...d.data() }))
+          .filter(e => e.receivedAt && new Date(e.receivedAt) >= thirtyDAgo)
+          .sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
         setEvents(recentEvents)
       } catch (err) {
         console.error('Dashboard load error:', err)
@@ -114,8 +132,19 @@ export default function Dashboard() {
   if (orgLoading) return <Spinner />
   if (!currentOrg) return null
 
-  const chartData = buildChartData(conflicts, events)
+  const chartData = buildChartData(conflicts, events, 11)
+  const eventChartData = buildChartData(conflicts, events, 29)
   const recent = conflicts.slice(0, 3)
+
+  // Event Usage tab data
+  const conflictedPaths = new Set(conflicts.map(c => c.documentPath).filter(Boolean))
+  const recentEvents = events.slice(0, 15)
+  const domainBreakdown = buildDomainBreakdown(events)
+  const avgPerDay = events.length > 0 ? (events.length / 30).toFixed(1) : '—'
+  const eventsThisWeek = events.filter(e => {
+    const ts = new Date(e.receivedAt)
+    return !isNaN(ts) && ts >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  }).length
 
   // Use org-level counts from OrgContext
   const conflictCount = currentOrg?.conflictCount ?? conflicts.length
@@ -296,11 +325,133 @@ export default function Dashboard() {
           </div>
         </>
       ) : (
-        <div className="bg-white border border-zinc-200 p-12 text-center">
-          <p className="text-3xl mb-3">📊</p>
-          <p className="text-sm font-medium text-zinc-900">Event usage tracking coming soon</p>
-          <p className="text-xs text-zinc-400 mt-1">We're working on detailed event analytics.</p>
-        </div>
+        <>
+          {/* Event stats */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white border border-zinc-200 p-5">
+              <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Events (MTD)</p>
+              <p className="text-4xl font-semibold text-zinc-900">{loading ? '—' : eventCount}</p>
+            </div>
+            <div className="bg-white border border-zinc-200 p-5">
+              <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Events (7d)</p>
+              <p className="text-4xl font-semibold text-zinc-900">{loading ? '—' : eventsThisWeek}</p>
+            </div>
+            <div className="bg-white border border-zinc-200 p-5">
+              <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Avg per day (30d)</p>
+              <p className="text-4xl font-semibold text-zinc-900">{loading ? '—' : avgPerDay}</p>
+            </div>
+          </div>
+
+          {/* Events per day chart */}
+          <div className="bg-white border border-zinc-200 p-5">
+            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-4">Events per day (30d)</p>
+            {loading ? <Spinner /> : (
+              <ResponsiveContainer width="100%" height={120}>
+                <ComposedChart data={eventChartData} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 9, fill: '#a1a1aa' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={4}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 9, fill: '#a1a1aa' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={20}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{ fontSize: 11, border: '1px solid #e4e4e7', borderRadius: 0 }}
+                    formatter={(value, name) => [value, name]}
+                  />
+                  <Bar yAxisId="left" dataKey="eventCount" fill="#6366f1" radius={0} maxBarSize={20} name="Events" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Recent events + domain breakdown */}
+          <div className="grid grid-cols-3 gap-4">
+            {/* Recent events table */}
+            <div className="col-span-2 bg-white border border-zinc-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-zinc-100">
+                <p className="text-sm font-semibold text-zinc-900">Recent events</p>
+              </div>
+              {loading ? <Spinner /> : recentEvents.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-sm text-zinc-400">No events in the last 30 days</p>
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-zinc-100">
+                      {['URL', 'Parameters', 'Status', 'Time'].map(col => (
+                        <th key={col} className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentEvents.map(e => {
+                      const hasConflict = conflictedPaths.has(e.path)
+                      const params = e.utmParameters ? Object.keys(e.utmParameters).join(', ') : '—'
+                      return (
+                        <tr key={e.id} className="border-b border-zinc-50 hover:bg-zinc-50">
+                          <td className="px-5 py-3 text-sm text-zinc-900 max-w-[180px]">
+                            <span className="block truncate">{e.url || '—'}</span>
+                          </td>
+                          <td className="px-5 py-3 text-xs font-mono text-zinc-500 max-w-[140px]">
+                            <span className="block truncate">{params}</span>
+                          </td>
+                          <td className="px-5 py-3">
+                            {hasConflict ? (
+                              <span className="text-xs font-medium text-red-600 bg-red-50 border border-red-100 px-2 py-0.5">conflict</span>
+                            ) : (
+                              <span className="text-xs font-medium text-teal-700 bg-teal-50 border border-teal-100 px-2 py-0.5">clean</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3 text-sm text-zinc-400">{formatTime(e.receivedAt)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Domain breakdown */}
+            <div className="bg-white border border-zinc-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-zinc-100">
+                <p className="text-sm font-semibold text-zinc-900">By domain</p>
+              </div>
+              {loading ? <Spinner /> : domainBreakdown.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-sm text-zinc-400">No data</p>
+                </div>
+              ) : (
+                <div className="px-5 py-4 space-y-3">
+                  {domainBreakdown.map(({ domain, count }) => {
+                    const pct = events.length > 0 ? (count / events.length) * 100 : 0
+                    return (
+                      <div key={domain}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-mono text-zinc-700 truncate max-w-[130px]">{domain}</span>
+                          <span className="text-xs text-zinc-400 ml-2 flex-shrink-0">{count}</span>
+                        </div>
+                        <div className="w-full h-1 bg-zinc-100">
+                          <div className="h-full bg-indigo-400" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   )
