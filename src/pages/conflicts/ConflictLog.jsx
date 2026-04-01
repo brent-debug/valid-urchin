@@ -12,6 +12,25 @@ import EmptyState from '../../components/ui/EmptyState'
 import Modal from '../../components/ui/Modal'
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 
+function FilterIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 1200 1200" fill="currentColor">
+      <path d="m528 604.31v235.69c-0.046875 3.1875 1.2656 6.2344 3.6094 8.3906l120 120c2.1562 2.3438 5.2031 3.6562 8.3906 3.6094 1.5938 0.046875 3.1406-0.28125 4.5469-0.9375 4.5-1.875 7.4531-6.2344 7.4531-11.062v-355.69l297.14-356.63c3.0938-3.5156 3.7969-8.5312 1.6406-12.75-1.875-4.2188-6.1406-6.9375-10.781-6.9375h-720c-4.6406 0-8.9062 2.7188-10.781 6.9375-2.1562 4.2188-1.4531 9.2344 1.6406 12.75z"/>
+    </svg>
+  )
+}
+
+function SortIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 1200 1200" fill="currentColor">
+      <path d="m150 912.5h400c22.328 0 42.961-11.914 54.125-31.25 11.168-19.336 11.168-43.164 0-62.5-11.164-19.336-31.797-31.25-54.125-31.25h-400c-22.328 0-42.961 11.914-54.125 31.25-11.168 19.336-11.168 43.164 0 62.5 11.164 19.336 31.797 31.25 54.125 31.25z"/>
+      <path d="m150 562.5h500c22.328 0 42.961-11.914 54.125-31.25 11.168-19.336 11.168-43.164 0-62.5-11.164-19.336-31.797-31.25-54.125-31.25h-500c-22.328 0-42.961 11.914-54.125 31.25-11.168 19.336-11.168 43.164 0 62.5 11.164 19.336 31.797 31.25 54.125 31.25z"/>
+      <path d="m1050 137.5h-900c-22.328 0-42.961 11.914-54.125 31.25-11.168 19.336-11.168 43.164 0 62.5 11.164 19.336 31.797 31.25 54.125 31.25h900c22.328 0 42.961-11.914 54.125-31.25 11.168-19.336 11.168-43.164 0-62.5-11.164-19.336-31.797-31.25-54.125-31.25z"/>
+      <path d="m1050 787.5c-16.586-0.046875-32.5 6.5469-44.191 18.309l-43.309 43.309v-349.12c0-22.328-11.914-42.961-31.25-54.125-19.336-11.168-43.164-11.168-62.5 0-19.336 11.164-31.25 31.797-31.25 54.125v349.12l-43.309-43.309v-0.003906c-11.715-11.754-27.621-18.371-44.215-18.387s-32.516 6.5703-44.25 18.305c-11.734 11.734-18.32 27.656-18.305 44.25s6.6328 32.5 18.387 44.215l150 150c11.719 11.723 27.617 18.309 44.191 18.309s32.473-6.5859 44.191-18.309l150-150c11.715-11.723 18.301-27.617 18.301-44.191s-6.5859-32.473-18.305-44.191-27.613-18.305-44.188-18.309z"/>
+    </svg>
+  )
+}
+
 const TIME_RANGES = [
   { label: 'Last 24h', ms: 86400000 },
   { label: 'Last 7d', ms: 7 * 86400000 },
@@ -45,6 +64,8 @@ export default function ConflictLog() {
   const { config, reload: reloadConfig } = useConfiguration()
   const apiKey = currentOrg?.firestore_api_key
 
+  const [viewTab, setViewTab] = useState('conflicts') // 'conflicts' | 'auto-rules'
+
   const [conflicts, setConflicts] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -75,6 +96,13 @@ export default function ConflictLog() {
   // Allow value animation state
   const [allowedKeys, setAllowedKeys] = useState({}) // groupKey → 'success' | 'fading' | 'gone'
 
+  // Auto-resolve rules management
+  const [autoRules, setAutoRules] = useState([])
+  const [autoRulesLoading, setAutoRulesLoading] = useState(false)
+  const [autoRuleCounts, setAutoRuleCounts] = useState({}) // ruleId → resolved count
+  const [editRuleModal, setEditRuleModal] = useState(null) // rule object
+  const [extendDays, setExtendDays] = useState('')
+
   useEffect(() => {
     if (!apiKey) return
     loadConflicts()
@@ -101,6 +129,68 @@ export default function ConflictLog() {
         setResolutions(map)
       })
   }, [currentOrg?.id])
+
+  useEffect(() => {
+    if (currentOrg?.id && viewTab === 'auto-rules') loadAutoRules()
+  }, [currentOrg?.id, viewTab])
+
+  async function loadAutoRules() {
+    setAutoRulesLoading(true)
+    try {
+      const { data } = await supabase
+        .from('conflict_resolution_rules')
+        .select('*')
+        .eq('organization_id', currentOrg.id)
+        .order('created_at', { ascending: false })
+      setAutoRules(data || [])
+
+      // Load resolved counts per parameter:value key
+      const { data: resData } = await supabase
+        .from('conflict_resolutions')
+        .select('conflict_id')
+        .eq('organization_id', currentOrg.id)
+        .eq('resolution_type', 'resolved')
+      const counts = {}
+      ;(resData || []).forEach(r => {
+        counts[r.conflict_id] = (counts[r.conflict_id] || 0) + 1
+      })
+      setAutoRuleCounts(counts)
+    } catch (e) {
+      console.warn('Failed to load auto rules:', e)
+    } finally {
+      setAutoRulesLoading(false)
+    }
+  }
+
+  async function handleDeleteAutoRule(ruleId) {
+    if (!confirm('Delete this auto-resolve rule?')) return
+    await supabase.from('conflict_resolution_rules').delete().eq('id', ruleId)
+    setAutoRules(prev => prev.filter(r => r.id !== ruleId))
+  }
+
+  async function handleExtendAutoRule() {
+    if (!editRuleModal || extendDays === '') return
+    const newExpiry = extendDays === '0'
+      ? null
+      : new Date(Date.now() + parseInt(extendDays) * 86400000).toISOString()
+    await supabase
+      .from('conflict_resolution_rules')
+      .update({ expires_at: newExpiry, auto_resolve_days: extendDays === '0' ? null : parseInt(extendDays) })
+      .eq('id', editRuleModal.id)
+    setAutoRules(prev => prev.map(r => r.id === editRuleModal.id ? { ...r, expires_at: newExpiry } : r))
+    setEditRuleModal(null)
+    setExtendDays('')
+  }
+
+  function timeRemaining(expiresAt) {
+    if (!expiresAt) return 'Indefinite'
+    const ms = new Date(expiresAt) - Date.now()
+    if (ms <= 0) return 'Expired'
+    const days = Math.floor(ms / 86400000)
+    if (days >= 1) return `${days}d remaining`
+    const hours = Math.floor(ms / 3600000)
+    return `${hours}h remaining`
+  }
 
   // Close menu on outside click
   useEffect(() => {
@@ -176,17 +266,24 @@ export default function ConflictLog() {
     violationGroups[key].conflicts.push(c)
   })
 
-  // Determine group status: resolved only if the most recent resolution is AFTER the most recent conflict
+  // Determine group status: resolved only if the most recent resolution is AFTER the most recent conflict,
+  // or an active auto-resolve rule covers this group.
   function getGroupStatus(key, group) {
     const resolution = resolutions[key]
-    if (!resolution) return 'open'
-    const resolvedAt = resolution.created_at ? new Date(resolution.created_at) : null
+    const autoResolveRule = getAutoResolveRule(group.parameter, group.value, currentOrg?.resolutionRules || [])
+
     const mostRecentConflict = group.conflicts.reduce((latest, c) => {
       const ts = c.validationTimestamp
       const t = ts?.toDate?.() ?? (ts ? new Date(ts) : null)
       if (!t || isNaN(t)) return latest
       return !latest || t > latest ? t : latest
     }, null)
+
+    // Active auto-resolve rule → treat as resolved (regardless of recurrence)
+    if (autoResolveRule) return 'auto-resolved'
+
+    if (!resolution) return 'open'
+    const resolvedAt = resolution.created_at ? new Date(resolution.created_at) : null
     // If a new conflict occurred after the resolution, group is open again
     if (mostRecentConflict && resolvedAt && mostRecentConflict > resolvedAt) return 'open'
     return resolution.resolution_type === 'flagged' ? 'flagged' : 'resolved'
@@ -200,6 +297,7 @@ export default function ConflictLog() {
       const status = getGroupStatus(key, group)
       if (statusFilter === 'open' && status !== 'open') return false
       if (statusFilter === 'resolved' && status === 'open') return false
+      // auto-resolved counts as resolved
     }
     return true
   })
@@ -376,6 +474,112 @@ export default function ConflictLog() {
 
   return (
     <div className="space-y-4">
+      {/* View tab */}
+      <div className="flex items-center justify-between">
+        <div className="inline-flex bg-zinc-100 rounded-full p-1">
+          {[['conflicts', 'Conflicts'], ['auto-rules', 'Auto-resolve rules']].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setViewTab(key)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                viewTab === key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+              }`}
+            >
+              {label}
+              {key === 'auto-rules' && autoRules.length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full bg-teal-600 text-white text-[10px] font-semibold">
+                  {autoRules.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Auto-resolve rules view */}
+      {viewTab === 'auto-rules' && (
+        <div className="space-y-4">
+          {autoRulesLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600" />
+            </div>
+          ) : autoRules.length === 0 ? (
+            <EmptyState icon="⚙️" title="No auto-resolve rules" description="When you mark a conflict resolved with an auto-resolve duration, rules will appear here." />
+          ) : (
+            <div className="bg-white border border-zinc-200 overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-zinc-100">
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Parameter / Value</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Created by</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Created</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Expires</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Auto-resolved</th>
+                    <th className="text-right px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {autoRules.map(rule => {
+                    const key = `${rule.parameter}:${rule.value}`
+                    const count = autoRuleCounts[key] || 0
+                    const isExpired = rule.expires_at && new Date(rule.expires_at) < new Date()
+                    return (
+                      <tr key={rule.id} className="border-b border-zinc-50 last:border-0">
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-mono text-zinc-700 bg-zinc-100 px-1.5 py-0.5">{rule.parameter}</span>
+                            {rule.value && (
+                              <>
+                                <span className="text-xs text-zinc-400">=</span>
+                                <span className="text-sm font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5">{rule.value}</span>
+                              </>
+                            )}
+                            {!rule.value && <span className="text-xs text-zinc-400 italic">any value</span>}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-sm text-zinc-600">{rule.created_by_email || '—'}</td>
+                        <td className="px-5 py-3 text-sm text-zinc-500">{rule.created_at ? new Date(rule.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
+                        <td className="px-5 py-3">
+                          <span className={`text-sm ${isExpired ? 'text-red-500' : 'text-zinc-600'}`}>
+                            {timeRemaining(rule.expires_at)}
+                          </span>
+                          {rule.expires_at && !isExpired && (
+                            <p className="text-xs text-zinc-400 mt-0.5">
+                              {new Date(rule.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="text-sm font-semibold text-zinc-700">{count}</span>
+                          <span className="text-xs text-zinc-400 ml-1">conflict{count !== 1 ? 's' : ''}</span>
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => { setEditRuleModal(rule); setExtendDays('') }}
+                              className="text-xs text-teal-600 border border-teal-200 bg-teal-50 hover:bg-teal-100 px-3 py-1 transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAutoRule(rule.id)}
+                              className="text-xs text-red-500 border border-red-200 bg-red-50 hover:bg-red-100 px-3 py-1 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewTab === 'conflicts' && (<>
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white border border-zinc-200 p-4 text-center">
@@ -419,9 +623,10 @@ export default function ConflictLog() {
         <Button variant="secondary" size="sm" onClick={loadConflicts}>Refresh</Button>
       </div>
 
-      {/* Status pills */}
-      <div className="flex items-center gap-4">
-        <div className="inline-flex bg-zinc-100 rounded-full p-1">
+      {/* Status + Sort pills */}
+      <div className="flex items-center gap-3">
+        <div className="inline-flex items-center bg-zinc-100 rounded-full p-1 gap-0.5">
+          <span className="pl-2 pr-1 text-zinc-400"><FilterIcon /></span>
           {[
             { key: 'all', label: 'All' },
             { key: 'open', label: 'Open' },
@@ -438,7 +643,8 @@ export default function ConflictLog() {
             </button>
           ))}
         </div>
-        <div className="inline-flex bg-zinc-100 rounded-full p-1">
+        <div className="inline-flex items-center bg-zinc-100 rounded-full p-1 gap-0.5">
+          <span className="pl-2 pr-1 text-zinc-400"><SortIcon /></span>
           {[
             { key: 'recent', label: 'Recent' },
             { key: 'volume', label: 'Volume' },
@@ -498,12 +704,10 @@ export default function ConflictLog() {
             const groupStatus = getGroupStatus(key, group)
             const isResolved = groupStatus === 'resolved'
             const isFlagged = groupStatus === 'flagged'
+            const isAutoResolved = groupStatus === 'auto-resolved'
             const allowState = allowedKeys[key]
 
             if (allowState === 'gone') return null
-
-            // Check for auto-resolve rule
-            const autoResolveRule = getAutoResolveRule(group.parameter, group.value, currentOrg?.resolutionRules || [])
 
             // Most recent timestamp in group
             const mostRecent = group.conflicts.reduce((latest, c) => {
@@ -543,12 +747,11 @@ export default function ConflictLog() {
                   <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
                     <Badge variant="error">{occurrences}</Badge>
 
-                    {autoResolveRule && !isResolved && !isFlagged && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                    {isAutoResolved && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700">
                         Auto-resolved
                       </span>
                     )}
-
                     {isResolved && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
                         Resolved
@@ -560,7 +763,7 @@ export default function ConflictLog() {
                       </span>
                     )}
 
-                    {!isResolved && !isFlagged && !autoResolveRule && (
+                    {!isResolved && !isFlagged && !isAutoResolved && (
                       <>
                         <button
                           onClick={() => openResolveModal(key)}
@@ -648,6 +851,8 @@ export default function ConflictLog() {
         </div>
       )}
 
+      </>)}
+
       {/* Mark Resolved modal */}
       <Modal
         open={resolveModalKey !== null}
@@ -697,6 +902,64 @@ export default function ConflictLog() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Edit auto-resolve rule modal */}
+      <Modal
+        open={editRuleModal !== null}
+        onClose={() => { setEditRuleModal(null); setExtendDays('') }}
+        title="Edit auto-resolve rule"
+      >
+        {editRuleModal && (
+          <div className="space-y-4">
+            <div className="bg-zinc-50 border border-zinc-200 p-3 text-sm">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono text-zinc-700 bg-zinc-100 px-1.5 py-0.5">{editRuleModal.parameter}</span>
+                {editRuleModal.value && (
+                  <>
+                    <span className="text-zinc-400">=</span>
+                    <span className="font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5">{editRuleModal.value}</span>
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-zinc-500 mt-1.5">
+                Created by {editRuleModal.created_by_email || 'unknown'} on {editRuleModal.created_at ? new Date(editRuleModal.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+              </p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Current expiry: <span className="font-medium">{timeRemaining(editRuleModal.expires_at)}</span>
+                {editRuleModal.expires_at && ` (${new Date(editRuleModal.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})`}
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Set new duration</label>
+              <select value={extendDays} onChange={e => setExtendDays(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600">
+                <option value="">Select duration…</option>
+                <option value="7">7 days from now</option>
+                <option value="14">14 days from now</option>
+                <option value="30">30 days from now</option>
+                <option value="60">60 days from now</option>
+                <option value="90">90 days from now</option>
+                <option value="0">Indefinitely</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setEditRuleModal(null); setExtendDays('') }}
+                className="bg-white text-zinc-700 border border-zinc-200 rounded-full px-4 py-2 text-sm hover:bg-zinc-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExtendAutoRule}
+                disabled={extendDays === ''}
+                className="bg-teal-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-teal-700 disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Flag Rule Issue modal */}
