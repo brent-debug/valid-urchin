@@ -86,7 +86,7 @@ function StandardRow({ config: stdConfig, value, onChange, canEdit }) {
           disabled={!canEdit}
           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${enabled ? 'bg-teal-600' : 'bg-zinc-300'} ${!canEdit ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
         >
-          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
         </button>
       </div>
       <div className="flex-1 min-w-0 space-y-1.5">

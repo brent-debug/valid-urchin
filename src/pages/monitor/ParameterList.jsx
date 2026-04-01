@@ -45,7 +45,7 @@ function Toggle({ checked, onChange, disabled }) {
       disabled={disabled}
       className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-teal-600' : 'bg-zinc-300'} ${disabled ? 'opacity-50' : ''}`}
     >
-      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
     </button>
   )
 }
@@ -59,8 +59,13 @@ export default function MonitorSettings() {
   const { config, loading, reload } = useConfiguration()
   const { currentOrg, loading: orgLoading } = useOrg()
 
-  const tab = location.pathname.startsWith('/monitor/rules') ? 'rules' : 'params'
-  const [activeTab, setActiveTab] = useState(tab === 'rules' && location.search?.includes('tab=issues') ? 'issues' : tab)
+  function pathToTab(p) {
+    if (p.startsWith('/monitor/issues')) return 'issues'
+    if (p.startsWith('/monitor/standards')) return 'standards'
+    if (p.startsWith('/monitor/rules')) return 'rules'
+    return 'params'
+  }
+  const [activeTab, setActiveTab] = useState(pathToTab(location.pathname))
 
   const [showAdd, setShowAdd] = useState(false)
   const [newParamName, setNewParamName] = useState('')
@@ -72,8 +77,8 @@ export default function MonitorSettings() {
   const [issuesLoading, setIssuesLoading] = useState(false)
 
   useEffect(() => {
-    setActiveTab(tab === 'rules' && location.search?.includes('tab=issues') ? 'issues' : tab)
-  }, [tab, location.search])
+    setActiveTab(pathToTab(location.pathname))
+  }, [location.pathname])
 
   useEffect(() => {
     if (currentOrg?.id) {
@@ -196,8 +201,8 @@ export default function MonitorSettings() {
   const tabs = [
     { key: 'params', label: 'Parameters', href: '/monitor/parameters' },
     { key: 'rules', label: 'Conditional Rules', href: '/monitor/rules' },
-    { key: 'issues', label: 'Rule Issues', href: '/monitor/rules' },
-    { key: 'standards', label: 'Format Standards', href: '/monitor/parameters' },
+    { key: 'issues', label: 'Rule Issues', href: '/monitor/issues' },
+    { key: 'standards', label: 'Format Standards', href: '/monitor/standards' },
   ]
 
   return (
@@ -208,11 +213,7 @@ export default function MonitorSettings() {
           {tabs.map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => {
-                setActiveTab(key)
-                if (key === 'params') navigate('/monitor/parameters')
-                else navigate('/monitor/rules')
-              }}
+              onClick={() => navigate(tabs.find(t => t.key === key).href)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors relative ${
                 activeTab === key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
               }`}

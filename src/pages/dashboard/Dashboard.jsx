@@ -120,7 +120,12 @@ export default function Dashboard() {
   // Use org-level counts from OrgContext (set during login), fall back to local conflicts
   const conflictCount = currentOrg?.conflictCount ?? org?.conflictCount ?? conflicts.length
   const eventCount = currentOrg?.eventCount ?? org?.eventCount ?? 0
-  const conflictRate = eventCount > 0 ? ((conflictCount / eventCount) * 100).toFixed(1) : null
+  const rawRate = eventCount > 0 ? conflictCount / eventCount : null
+  const conflictRate = rawRate !== null
+    ? rawRate > 1
+      ? `${rawRate.toFixed(1)}× per event`
+      : `${(rawRate * 100).toFixed(1)}%`
+    : null
 
   const chartTitle = chartMetric === 'events' ? 'Conflicts & Events per day'
     : chartMetric === 'errorRate' ? 'Conflict Rate per day'
@@ -157,7 +162,7 @@ export default function Dashboard() {
             </div>
             <div className="bg-white border border-zinc-200 p-5">
               <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Conflict rate</p>
-              <p className="text-4xl font-semibold text-zinc-900">{conflictRate !== null ? `${conflictRate}%` : '—'}</p>
+              <p className="text-4xl font-semibold text-zinc-900">{conflictRate ?? '—'}</p>
             </div>
           </div>
 

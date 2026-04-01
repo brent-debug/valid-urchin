@@ -48,6 +48,8 @@ function AppRoutes() {
         <Route path="monitor/rules/new" element={<ConditionalRuleEditor />} />
         <Route path="monitor/rules/:ruleId/edit" element={<ConditionalRuleEditor />} />
         <Route path="monitor/rules/:ruleId" element={<ConditionalRuleView />} />
+        <Route path="monitor/issues" element={<ParameterList />} />
+        <Route path="monitor/standards" element={<ParameterList />} />
         <Route path="conflicts" element={<ConflictLog />} />
         <Route path="settings/organization" element={<OrganizationSettings />} />
         <Route path="settings/team" element={<TeamMembers />} />

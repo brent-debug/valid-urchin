@@ -91,9 +91,13 @@ export default function ConflictLog() {
     supabase.from('conflict_resolutions')
       .select('*')
       .eq('organization_id', currentOrg.id)
+      .order('created_at', { ascending: false })
       .then(({ data }) => {
+        // Keep the most recent resolution per conflict_id
         const map = {}
-        ;(data || []).forEach(r => { map[r.conflict_id] = r })
+        ;(data || []).forEach(r => {
+          if (!map[r.conflict_id]) map[r.conflict_id] = r
+        })
         setResolutions(map)
       })
   }, [currentOrg?.id])
@@ -153,8 +157,6 @@ export default function ConflictLog() {
       ?? (typeof raw === 'number' ? raw : null)
       ?? null
     if (timeRange.ms !== Infinity && (ts === null || now - ts > timeRange.ms)) return false
-    if (statusFilter === 'open' && c.resolved) return false
-    if (statusFilter === 'resolved' && !c.resolved) return false
     const url = c.originalEventData?.url || ''
     if (search && !url.toLowerCase().includes(search.toLowerCase())) return false
     if (domainFilter !== 'all' && getRootDomain(url) !== domainFilter) return false
@@ -174,11 +176,33 @@ export default function ConflictLog() {
     violationGroups[key].conflicts.push(c)
   })
 
-  // Apply conflict threshold
+  // Determine group status: resolved only if the most recent resolution is AFTER the most recent conflict
+  function getGroupStatus(key, group) {
+    const resolution = resolutions[key]
+    if (!resolution) return 'open'
+    const resolvedAt = resolution.created_at ? new Date(resolution.created_at) : null
+    const mostRecentConflict = group.conflicts.reduce((latest, c) => {
+      const ts = c.validationTimestamp
+      const t = ts?.toDate?.() ?? (ts ? new Date(ts) : null)
+      if (!t || isNaN(t)) return latest
+      return !latest || t > latest ? t : latest
+    }, null)
+    // If a new conflict occurred after the resolution, group is open again
+    if (mostRecentConflict && resolvedAt && mostRecentConflict > resolvedAt) return 'open'
+    return resolution.resolution_type === 'flagged' ? 'flagged' : 'resolved'
+  }
+
+  // Apply conflict threshold and status filter at group level
   const threshold = currentOrg?.conflictThreshold || 1
-  const filteredGroupEntries = Object.entries(violationGroups).filter(
-    ([, group]) => group.conflicts.length >= threshold
-  )
+  const filteredGroupEntries = Object.entries(violationGroups).filter(([key, group]) => {
+    if (group.conflicts.length < threshold) return false
+    if (statusFilter !== 'all') {
+      const status = getGroupStatus(key, group)
+      if (statusFilter === 'open' && status !== 'open') return false
+      if (statusFilter === 'resolved' && status === 'open') return false
+    }
+    return true
+  })
 
   // Sort entries
   const sortedGroupEntries = [...filteredGroupEntries].sort(([, a], [, b]) => {
@@ -471,9 +495,9 @@ export default function ConflictLog() {
           {sortedGroupEntries.map(([key, group]) => {
             const isOpen = expanded[key]
             const occurrences = group.conflicts.length
-            const resolution = resolutions[key]
-            const isResolved = resolution?.resolution_type === 'resolved'
-            const isFlagged = resolution?.resolution_type === 'flagged'
+            const groupStatus = getGroupStatus(key, group)
+            const isResolved = groupStatus === 'resolved'
+            const isFlagged = groupStatus === 'flagged'
             const allowState = allowedKeys[key]
 
             if (allowState === 'gone') return null
