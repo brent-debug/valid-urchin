@@ -3,6 +3,16 @@ import { Link, useNavigate } from 'react-router-dom'
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useOrg } from '../../contexts/OrgContext'
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from 'recharts'
 
 function Spinner() {
   return (
@@ -39,37 +49,9 @@ function groupByDay(conflicts) {
     d.setDate(d.getDate() - i)
     const key = d.toISOString().slice(0, 10)
     const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    result.push({ key, label, count: days[key] || 0 })
+    result.push({ key, label, count: days[key] || 0, eventCount: 0, errorRate: null })
   }
   return result
-}
-
-function BarChart({ data }) {
-  const max = Math.max(...data.map(d => d.count), 1)
-  const chartH = 80
-  const barW = 28
-  const gap = 8
-  const totalW = data.length * (barW + gap) - gap
-
-  return (
-    <svg viewBox={`0 0 ${totalW} ${chartH + 24}`} className="w-full" style={{ height: 120 }}>
-      {data.map((d, i) => {
-        const barH = Math.max((d.count / max) * chartH, d.count > 0 ? 3 : 1)
-        const x = i * (barW + gap)
-        const y = chartH - barH
-        return (
-          <g key={d.key}>
-            <rect x={x} y={y} width={barW} height={barH} rx={4} fill={d.count > 0 ? '#0D9488' : '#E4E4E7'} />
-            {i % 3 === 0 && (
-              <text x={x + barW / 2} y={chartH + 16} textAnchor="middle" fontSize="9" fill="#A1A1AA">
-                {d.label}
-              </text>
-            )}
-          </g>
-        )
-      })}
-    </svg>
-  )
 }
 
 export default function Dashboard() {
@@ -79,6 +61,7 @@ export default function Dashboard() {
   const [tab, setTab] = useState('conflicts')
   const [conflicts, setConflicts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [chartMetric, setChartMetric] = useState(null) // null | 'events' | 'errorRate'
 
   useEffect(() => {
     if (!apiKey) return
@@ -110,6 +93,10 @@ export default function Dashboard() {
   const conflictCount = currentOrg?.conflictCount ?? org?.conflictCount ?? conflicts.length
   const eventCount = currentOrg?.eventCount ?? org?.eventCount ?? 0
   const conflictRate = eventCount > 0 ? ((conflictCount / eventCount) * 100).toFixed(1) : null
+
+  const chartTitle = chartMetric === 'events' ? 'Conflicts & Events per day'
+    : chartMetric === 'errorRate' ? 'Conflict Rate per day'
+    : 'Conflicts per day'
 
   return (
     <div className="space-y-5">
@@ -148,8 +135,86 @@ export default function Dashboard() {
 
           {/* Bar chart */}
           <div className="bg-white border border-zinc-200 p-5">
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-4">Conflicts per day</p>
-            {loading ? <Spinner /> : <BarChart data={chartData} />}
+            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">{chartTitle}</p>
+
+            {/* Overlay toggle */}
+            <div className="flex items-center gap-1 mb-4">
+              <span className="text-xs text-zinc-400 mr-1">Overlay:</span>
+              {[['events', 'Events'], ['errorRate', 'Error Rate %']].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setChartMetric(prev => prev === key ? null : key)}
+                  className={`px-3 py-1 text-xs border transition-colors rounded-full ${
+                    chartMetric === key
+                      ? 'bg-teal-600 text-white border-teal-600'
+                      : 'border-zinc-200 text-zinc-500 hover:border-zinc-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {loading ? <Spinner /> : (
+              <ResponsiveContainer width="100%" height={120}>
+                <ComposedChart data={chartData} margin={{ top: 4, right: chartMetric ? 32 : 0, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 9, fill: '#a1a1aa' }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={2}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 9, fill: '#a1a1aa' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={20}
+                    allowDecimals={false}
+                  />
+                  {chartMetric && (
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fontSize: 9, fill: '#a1a1aa' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={chartMetric === 'errorRate' ? 30 : 20}
+                      tickFormatter={v => chartMetric === 'errorRate' ? `${v}%` : v}
+                    />
+                  )}
+                  <Tooltip
+                    contentStyle={{ fontSize: 11, border: '1px solid #e4e4e7', borderRadius: 0 }}
+                    formatter={(value, name) => [name === 'Error Rate' ? `${value}%` : value, name]}
+                  />
+                  <Bar yAxisId="left" dataKey="count" fill="#0D9488" radius={0} maxBarSize={24} name="Conflicts" />
+                  {chartMetric === 'events' && (
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="eventCount"
+                      stroke="#6366f1"
+                      strokeWidth={1.5}
+                      dot={false}
+                      name="Events"
+                    />
+                  )}
+                  {chartMetric === 'errorRate' && (
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="errorRate"
+                      stroke="#f59e0b"
+                      strokeWidth={1.5}
+                      dot={false}
+                      name="Error Rate"
+                    />
+                  )}
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           {/* Recent conflicts table */}

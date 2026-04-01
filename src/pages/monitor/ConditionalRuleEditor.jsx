@@ -6,6 +6,7 @@ import { useOrg } from '../../contexts/OrgContext'
 import { saveConfiguration } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import { detectRuleConflicts } from '../../lib/ruleConflictDetector'
+import { writeAuditLog } from '../../lib/auditLog'
 
 function Spinner() {
   return (
@@ -188,6 +189,17 @@ export default function ConditionalRuleEditor() {
       } catch (conflictErr) {
         console.warn('Conflict detection failed:', conflictErr)
       }
+
+      await writeAuditLog({
+        organizationId: currentOrg.id,
+        userId: user?.id,
+        userEmail: user?.email,
+        action: isEdit ? 'rule_updated' : 'rule_created',
+        entityType: 'rule',
+        entityName: newRule.name,
+        entityId: newRule.id,
+        metadata: { source: 'rule_editor' },
+      })
 
       navigate('/monitor/rules')
     } catch (err) {

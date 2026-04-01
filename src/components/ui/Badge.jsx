@@ -8,6 +8,9 @@ const variants = {
   admin: 'bg-blue-50 text-blue-700',
   member: 'bg-zinc-100 text-zinc-600',
   viewer: 'bg-zinc-100 text-zinc-400',
+  // New role variants
+  manager: 'bg-blue-50 text-blue-700',
+  user: 'bg-zinc-100 text-zinc-600',
 }
 
 export default function Badge({ variant = 'draft', children }) {

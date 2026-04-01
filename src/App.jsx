@@ -14,6 +14,9 @@ import ConditionalRuleView from './pages/monitor/ConditionalRuleView'
 import ConflictLog from './pages/conflicts/ConflictLog'
 import OrganizationSettings from './pages/settings/OrganizationSettings'
 import TeamMembers from './pages/settings/TeamMembers'
+import UserManagement from './pages/settings/UserManagement'
+import UserProfile from './pages/settings/UserProfile'
+import AuditLog from './pages/settings/AuditLog'
 import ApiKeys from './pages/settings/ApiKeys'
 import Domains from './pages/settings/Domains'
 
@@ -48,6 +51,9 @@ function AppRoutes() {
         <Route path="conflicts" element={<ConflictLog />} />
         <Route path="settings/organization" element={<OrganizationSettings />} />
         <Route path="settings/team" element={<TeamMembers />} />
+        <Route path="settings/user-management" element={<UserManagement />} />
+        <Route path="settings/profile" element={<UserProfile />} />
+        <Route path="settings/audit-log" element={<AuditLog />} />
         <Route path="settings/api-keys" element={<ApiKeys />} />
         <Route path="settings/domains" element={<Domains />} />
       </Route>

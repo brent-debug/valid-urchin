@@ -10,8 +10,11 @@ import {
   KeyIcon,
   XMarkIcon,
   GlobeAltIcon,
+  UserIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline'
 import { useOrg } from '../../contexts/OrgContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { supabase } from '../../lib/supabase'
 import { getDomainLimit, getEventLimit } from '../../lib/plans'
 
@@ -22,16 +25,10 @@ const mainNav = [
   { name: 'Campaign Manager', href: '#', icon: MegaphoneIcon, soon: true },
 ]
 
-const settingsNav = [
-  { name: 'Organization', href: '/settings/organization', icon: BuildingOfficeIcon },
-  { name: 'Domains', href: '/settings/domains', icon: GlobeAltIcon },
-  { name: 'Team Members', href: '/settings/team', icon: UsersIcon },
-  { name: 'Urchin Snippet', href: '/settings/api-keys', icon: KeyIcon },
-]
-
 export default function Sidebar({ onClose }) {
   const location = useLocation()
   const { currentOrg } = useOrg()
+  const { isAdmin, isManager } = usePermissions()
   const [domainsUsed, setDomainsUsed] = useState(0)
 
   useEffect(() => {
@@ -52,6 +49,15 @@ export default function Sidebar({ onClose }) {
     if (item.matchPrefix) return location.pathname.startsWith(item.matchPrefix)
     return location.pathname === item.href
   }
+
+  const settingsNav = [
+    { name: 'Profile', href: '/settings/profile', icon: UserIcon },
+    ...(isAdmin ? [{ name: 'Organization', href: '/settings/organization', icon: BuildingOfficeIcon }] : []),
+    ...(isAdmin ? [{ name: 'User Management', href: '/settings/user-management', icon: UsersIcon }] : []),
+    { name: 'Urchin Snippet', href: '/settings/api-keys', icon: KeyIcon },
+    ...(isManager ? [{ name: 'Audit Log', href: '/settings/audit-log', icon: ClipboardDocumentListIcon }] : []),
+    { name: 'Domains', href: '/settings/domains', icon: GlobeAltIcon },
+  ]
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-zinc-200">

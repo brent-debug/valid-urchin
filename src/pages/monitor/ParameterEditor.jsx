@@ -6,6 +6,7 @@ import { useOrg } from '../../contexts/OrgContext'
 import { saveConfiguration } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import Badge from '../../components/ui/Badge'
+import { writeAuditLog } from '../../lib/auditLog'
 
 function Spinner() {
   return (
@@ -106,6 +107,15 @@ export default function ParameterEditor() {
         casingRules: { ...config.casingRules, [paramName]: { caseSensitive: nextCasing } },
       })
       await reload()
+      await writeAuditLog({
+        organizationId: currentOrg.id,
+        userId: user?.id,
+        userEmail: user?.email,
+        action: 'parameter_updated',
+        entityType: 'parameter',
+        entityName: paramName,
+        metadata: { source: 'parameter_editor' },
+      })
     } finally {
       setSaving(false)
     }
@@ -136,6 +146,15 @@ export default function ParameterEditor() {
       monitoredParameters: restParams,
       allowedValues: restValues,
       casingRules: restCasing,
+    })
+    const { data: { user } } = await supabase.auth.getUser()
+    await writeAuditLog({
+      organizationId: currentOrg.id,
+      userId: user?.id,
+      userEmail: user?.email,
+      action: 'parameter_deleted',
+      entityType: 'parameter',
+      entityName: paramName,
     })
     navigate('/monitor/parameters')
   }

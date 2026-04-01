@@ -1,13 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useOrg } from '../../contexts/OrgContext'
 import { useConfiguration } from '../../hooks/useConfiguration'
 import { saveConfiguration } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
+import { writeAuditLog } from '../../lib/auditLog'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 import EmptyState from '../../components/ui/EmptyState'
+import Modal from '../../components/ui/Modal'
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 
 const TIME_RANGES = [
@@ -54,6 +56,19 @@ export default function ConflictLog() {
   // Rule issues
   const [ruleIssues, setRuleIssues] = useState([])
 
+  // Resolutions map
+  const [resolutions, setResolutions] = useState({}) // keyed by conflict_id
+
+  // Modals
+  const [resolveModalKey, setResolveModalKey] = useState(null)
+  const [resolveNote, setResolveNote] = useState('')
+  const [flagModalKey, setFlagModalKey] = useState(null)
+  const [flagDescription, setFlagDescription] = useState('')
+
+  // Three-dot menu state
+  const [openMenu, setOpenMenu] = useState(null) // stores the groupKey
+  const menuRef = useRef(null)
+
   useEffect(() => {
     if (!apiKey) return
     loadConflicts()
@@ -64,6 +79,29 @@ export default function ConflictLog() {
       loadRuleIssues()
     }
   }, [currentOrg?.id])
+
+  useEffect(() => {
+    if (!currentOrg?.id) return
+    supabase.from('conflict_resolutions')
+      .select('*')
+      .eq('organization_id', currentOrg.id)
+      .then(({ data }) => {
+        const map = {}
+        ;(data || []).forEach(r => { map[r.conflict_id] = r })
+        setResolutions(map)
+      })
+  }, [currentOrg?.id])
+
+  // Close menu on outside click
+  useEffect(() => {
+    function handleMouseDown(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenu(null)
+      }
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [])
 
   async function loadConflicts() {
     setLoading(true)
@@ -139,14 +177,85 @@ export default function ConflictLog() {
     const { parameter, value } = reason
     const current = config.allowedValues?.[parameter] || []
     if (current.includes(value)) return
+    const { data: { user } } = await supabase.auth.getUser()
     await saveConfiguration(apiKey, {
       ...config,
       allowedValues: { ...config.allowedValues, [parameter]: [...current, value] },
+    })
+    await writeAuditLog({
+      organizationId: currentOrg.id,
+      userId: user?.id,
+      userEmail: user?.email,
+      action: 'conflict_allowed',
+      entityType: 'conflict',
+      entityId: `${parameter}:${value}`,
+      metadata: { parameter, value },
     })
     await reloadConfig()
   }
 
   const toggleExpand = (key) => setExpanded(p => ({ ...p, [key]: !p[key] }))
+
+  function openResolveModal(groupKey) {
+    setResolveModalKey(groupKey)
+    setResolveNote('')
+  }
+
+  async function handleResolveConfirm() {
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('conflict_resolutions').insert({
+      organization_id: currentOrg.id,
+      conflict_id: resolveModalKey,
+      resolution_type: 'resolved',
+      resolved_by: user.id,
+      resolved_by_email: user.email,
+      note: resolveNote,
+    })
+    await writeAuditLog({
+      organizationId: currentOrg.id,
+      userId: user.id,
+      userEmail: user.email,
+      action: 'conflict_resolved',
+      entityType: 'conflict',
+      entityId: resolveModalKey,
+      metadata: { note: resolveNote },
+    })
+    setResolutions(prev => ({ ...prev, [resolveModalKey]: { resolution_type: 'resolved' } }))
+    setResolveModalKey(null)
+    setResolveNote('')
+  }
+
+  async function handleFlagConfirm() {
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('rule_issues').insert({
+      organization_id: currentOrg.id,
+      issue_type: 'manual_flag',
+      severity: 'warning',
+      description: flagDescription || `Flagged conflict: ${flagModalKey}`,
+      affected_rules: [],
+    })
+    await supabase.from('conflict_resolutions').insert({
+      organization_id: currentOrg.id,
+      conflict_id: flagModalKey,
+      resolution_type: 'flagged',
+      resolved_by: user.id,
+      resolved_by_email: user.email,
+    })
+    await writeAuditLog({
+      organizationId: currentOrg.id,
+      userId: user.id,
+      userEmail: user.email,
+      action: 'conflict_flagged',
+      entityType: 'conflict',
+      entityId: flagModalKey,
+      metadata: { description: flagDescription },
+    })
+    setResolutions(prev => ({ ...prev, [flagModalKey]: { resolution_type: 'flagged' } }))
+    setFlagModalKey(null)
+    setFlagDescription('')
+    // Reload rule issues to show the new flag
+    await loadRuleIssues()
+  }
 
   return (
     <div className="space-y-4">
@@ -237,10 +346,14 @@ export default function ConflictLog() {
       ) : Object.keys(violationGroups).length === 0 ? (
         <EmptyState icon="✅" title="No conflicts found" description="No UTM violations match your current filters." />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2" ref={menuRef}>
           {Object.entries(violationGroups).map(([key, group]) => {
             const isOpen = expanded[key]
             const occurrences = group.conflicts.length
+            const resolution = resolutions[key]
+            const isResolved = resolution?.resolution_type === 'resolved'
+            const isFlagged = resolution?.resolution_type === 'flagged'
+
             return (
               <div key={key} className="bg-white border border-zinc-200 overflow-hidden">
                 <button
@@ -256,14 +369,64 @@ export default function ConflictLog() {
                     </div>
                     <p className="text-xs text-zinc-400 mt-1">{occurrences} occurrence{occurrences !== 1 ? 's' : ''}</p>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
                     <Badge variant="error">{occurrences}</Badge>
-                    <button
-                      onClick={e => { e.stopPropagation(); handleAllow(group.conflicts[0], { parameter: group.parameter, value: group.value }) }}
-                      className="text-xs text-teal-600 hover:text-teal-700 border border-teal-200 px-3 py-1 transition-colors"
-                    >
-                      Allow value
-                    </button>
+
+                    {isResolved && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700">
+                        Resolved
+                      </span>
+                    )}
+                    {isFlagged && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                        Rule Issue
+                      </span>
+                    )}
+
+                    {!isResolved && !isFlagged && (
+                      <>
+                        <button
+                          onClick={() => openResolveModal(key)}
+                          className="text-xs text-green-600 border border-green-200 bg-green-50 hover:bg-green-100 px-3 py-1 transition-colors"
+                        >
+                          Mark resolved
+                        </button>
+
+                        {/* Three-dot menu */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenMenu(prev => prev === key ? null : key)}
+                            className="text-zinc-400 hover:text-zinc-600 px-2 py-1 border border-transparent hover:border-zinc-200 transition-colors text-base leading-none"
+                            title="More options"
+                          >
+                            ⋯
+                          </button>
+                          {openMenu === key && (
+                            <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-zinc-200 shadow-sm min-w-[160px]">
+                              <button
+                                onClick={() => {
+                                  handleAllow(group.conflicts[0], { parameter: group.parameter, value: group.value })
+                                  setOpenMenu(null)
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-teal-600 hover:bg-zinc-50 transition-colors"
+                              >
+                                Allow value
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setFlagModalKey(key)
+                                  setFlagDescription('')
+                                  setOpenMenu(null)
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-amber-600 hover:bg-zinc-50 transition-colors"
+                              >
+                                Flag rule issue
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </button>
 
@@ -299,6 +462,80 @@ export default function ConflictLog() {
           })}
         </div>
       )}
+
+      {/* Mark Resolved modal */}
+      <Modal
+        open={resolveModalKey !== null}
+        onClose={() => { setResolveModalKey(null); setResolveNote('') }}
+        title="Mark as resolved"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-600">
+            Mark this conflict group as resolved. You can optionally add a note about what was fixed.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Note (optional)</label>
+            <input
+              type="text"
+              value={resolveNote}
+              onChange={e => setResolveNote(e.target.value)}
+              placeholder="What was fixed? (optional)"
+              className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => { setResolveModalKey(null); setResolveNote('') }}
+              className="bg-white text-zinc-700 border border-zinc-200 rounded-full px-4 py-2 text-sm hover:bg-zinc-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleResolveConfirm}
+              className="bg-green-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-green-700"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Flag Rule Issue modal */}
+      <Modal
+        open={flagModalKey !== null}
+        onClose={() => { setFlagModalKey(null); setFlagDescription('') }}
+        title="Flag as rule issue"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-600">
+            Flag this conflict as a rule configuration issue. It will appear in the Rule Issues section.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Description (optional)</label>
+            <textarea
+              value={flagDescription}
+              onChange={e => setFlagDescription(e.target.value)}
+              placeholder="Describe the issue (optional)"
+              rows={3}
+              className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 resize-none"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => { setFlagModalKey(null); setFlagDescription('') }}
+              className="bg-white text-zinc-700 border border-zinc-200 rounded-full px-4 py-2 text-sm hover:bg-zinc-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleFlagConfirm}
+              className="bg-amber-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-amber-700"
+            >
+              Flag issue
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

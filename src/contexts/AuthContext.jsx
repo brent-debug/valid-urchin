@@ -20,7 +20,17 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = (email, password) => supabase.auth.signInWithPassword({ email, password })
+  const signIn = async (email, password) => {
+    const result = await supabase.auth.signInWithPassword({ email, password })
+    if (result.data?.user) {
+      // Fire and forget — don't await, don't block sign-in
+      supabase.from('organization_members')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('user_id', result.data.user.id)
+        .then(() => {}) // ignore result
+    }
+    return result
+  }
   const signUp = (email, password) => supabase.auth.signUp({ email, password })
   const signOut = () => supabase.auth.signOut()
 
