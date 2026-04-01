@@ -67,6 +67,7 @@ export default function ConflictLog() {
 
   // Three-dot menu state
   const [openMenu, setOpenMenu] = useState(null) // stores the groupKey
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 })
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -346,7 +347,7 @@ export default function ConflictLog() {
       ) : Object.keys(violationGroups).length === 0 ? (
         <EmptyState icon="✅" title="No conflicts found" description="No UTM violations match your current filters." />
       ) : (
-        <div className="space-y-2" ref={menuRef}>
+        <div className="space-y-2">
           {Object.entries(violationGroups).map(([key, group]) => {
             const isOpen = expanded[key]
             const occurrences = group.conflicts.length
@@ -395,14 +396,22 @@ export default function ConflictLog() {
                         {/* Three-dot menu */}
                         <div className="relative">
                           <button
-                            onClick={() => setOpenMenu(prev => prev === key ? null : key)}
+                            onClick={e => {
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                              setOpenMenu(prev => prev === key ? null : key)
+                            }}
                             className="text-zinc-400 hover:text-zinc-600 px-2 py-1 border border-transparent hover:border-zinc-200 transition-colors text-base leading-none"
                             title="More options"
                           >
                             ⋯
                           </button>
                           {openMenu === key && (
-                            <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-zinc-200 shadow-sm min-w-[160px]">
+                            <div
+                              ref={menuRef}
+                              style={{ top: menuPos.top, right: menuPos.right }}
+                              className="fixed z-50 bg-white border border-zinc-200 shadow-sm min-w-[160px]"
+                            >
                               <button
                                 onClick={() => {
                                   handleAllow(group.conflicts[0], { parameter: group.parameter, value: group.value })
