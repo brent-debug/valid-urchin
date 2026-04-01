@@ -173,9 +173,12 @@ export default function ConflictLog() {
   const unresolved = filtered.filter(c => !c.resolved).length
   const groupCount = Object.keys(violationGroups).length
 
+  const [allowedKeys, setAllowedKeys] = useState({}) // groupKey → true (fading out)
+
   const handleAllow = async (_conflict, reason) => {
     if (!config) return
     const { parameter, value } = reason
+    const groupKey = `${parameter}:${value}`
     const current = config.allowedValues?.[parameter] || []
     if (current.includes(value)) return
     const { data: { user } } = await supabase.auth.getUser()
@@ -189,10 +192,18 @@ export default function ConflictLog() {
       userEmail: user?.email,
       action: 'conflict_allowed',
       entityType: 'conflict',
-      entityId: `${parameter}:${value}`,
+      entityId: groupKey,
       metadata: { parameter, value },
     })
     await reloadConfig()
+    // Show success state then fade out
+    setAllowedKeys(prev => ({ ...prev, [groupKey]: 'success' }))
+    setTimeout(() => {
+      setAllowedKeys(prev => ({ ...prev, [groupKey]: 'fading' }))
+      setTimeout(() => {
+        setAllowedKeys(prev => ({ ...prev, [groupKey]: 'gone' }))
+      }, 400)
+    }, 1800)
   }
 
   const toggleExpand = (key) => setExpanded(p => ({ ...p, [key]: !p[key] }))
@@ -354,9 +365,21 @@ export default function ConflictLog() {
             const resolution = resolutions[key]
             const isResolved = resolution?.resolution_type === 'resolved'
             const isFlagged = resolution?.resolution_type === 'flagged'
+            const allowState = allowedKeys[key]
+
+            if (allowState === 'gone') return null
 
             return (
-              <div key={key} className="bg-white border border-zinc-200 overflow-hidden">
+              <div
+                key={key}
+                className="bg-white border border-zinc-200 overflow-hidden transition-opacity duration-400"
+                style={{ opacity: allowState === 'fading' ? 0 : 1 }}
+              >
+                {allowState === 'success' && (
+                  <div className="px-5 py-2 bg-teal-50 border-b border-teal-100 text-xs text-teal-700 font-medium">
+                    ✓ Value added to allowed list — future events with this value will pass validation.
+                  </div>
+                )}
                 <button
                   onClick={() => toggleExpand(key)}
                   className="w-full flex items-center gap-3 px-5 py-4 hover:bg-zinc-50 text-left"
