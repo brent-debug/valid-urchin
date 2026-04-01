@@ -4,6 +4,7 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { supabase } from '../../lib/supabase'
 import { writeAuditLog } from '../../lib/auditLog'
 import { validateAgainstFormatStandards } from '../../lib/formatValidator'
+import RuleTester from '../../components/RuleTester'
 
 const STANDARDS_CONFIG = [
   {
@@ -50,7 +51,7 @@ const STANDARDS_CONFIG = [
     label: 'Required prefix',
     description: 'Values must start with this string.',
     type: 'text',
-    placeholder: 'e.g. utm_',
+    placeholder: 'e.g. brand_',
     defaultValue: '',
   },
   {
@@ -71,15 +72,13 @@ const STANDARDS_CONFIG = [
   },
 ]
 
-const PREVIEW_VALUES = ['my-value', 'my value', 'my_value', 'MY_VALUE--test', 'example123']
-
 function StandardRow({ config: stdConfig, value, onChange, canEdit }) {
   const enabled = value?.enabled || false
   const inputValue = value?.value !== undefined ? value.value : stdConfig.defaultValue
 
   return (
     <div className="flex items-start gap-4 py-4 border-b border-zinc-100 last:border-0">
-      <div className="mt-0.5">
+      <div className="mt-0.5 flex-shrink-0">
         <button
           type="button"
           onClick={() => canEdit && onChange({ ...value, enabled: !enabled })}
@@ -90,9 +89,7 @@ function StandardRow({ config: stdConfig, value, onChange, canEdit }) {
         </button>
       </div>
       <div className="flex-1 min-w-0 space-y-1.5">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-zinc-900">{stdConfig.label}</p>
-        </div>
+        <p className="text-sm font-medium text-zinc-900">{stdConfig.label}</p>
         <p className="text-xs text-zinc-500">{stdConfig.description}</p>
         {enabled && stdConfig.type !== 'toggle' && (
           <div className="mt-2">
@@ -136,33 +133,38 @@ function StandardRow({ config: stdConfig, value, onChange, canEdit }) {
   )
 }
 
-function LivePreview({ standards }) {
-  const previewVal = 'my-value example'
-  const violations = validateAgainstFormatStandards(previewVal, standards)
-  const passVal = 'my-value'
-  const passViolations = validateAgainstFormatStandards(passVal, standards)
+function generateExamples(standards) {
+  const examples = []
+  const sep = standards.wordSeparator?.enabled
+    ? (standards.wordSeparator?.value === 'underscore' ? '_' : '-')
+    : '-'
 
-  return (
-    <div className="border border-zinc-200 p-4 space-y-2 bg-zinc-50">
-      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Live preview</p>
-      <div className="space-y-1">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="font-mono text-zinc-600 bg-white border border-zinc-200 px-2 py-0.5 text-xs">{passVal}</span>
-          {passViolations.length === 0
-            ? <span className="text-teal-600 text-xs">✓ passes</span>
-            : <span className="text-red-500 text-xs">✗ {passViolations.join(', ')}</span>
-          }
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="font-mono text-zinc-600 bg-white border border-zinc-200 px-2 py-0.5 text-xs">{previewVal}</span>
-          {violations.length === 0
-            ? <span className="text-teal-600 text-xs">✓ passes</span>
-            : <span className="text-red-500 text-xs">✗ {violations.join(', ')}</span>
-          }
-        </div>
-      </div>
-    </div>
-  )
+  examples.push({ value: `my${sep}value`, passes: true })
+
+  if (standards.noSpaces?.enabled)
+    examples.push({ value: 'my value', passes: false, reason: 'No spaces allowed' })
+  if (standards.wordSeparator?.enabled && standards.wordSeparator?.value === 'hyphen')
+    examples.push({ value: 'my_value', passes: false, reason: 'Use hyphens, not underscores' })
+  if (standards.wordSeparator?.enabled && standards.wordSeparator?.value === 'underscore')
+    examples.push({ value: 'my-value', passes: false, reason: 'Use underscores, not hyphens' })
+  if (standards.maxLength?.enabled && standards.maxLength?.value)
+    examples.push({
+      value: 'a'.repeat(parseInt(standards.maxLength.value) + 1),
+      passes: false,
+      reason: `Exceeds ${standards.maxLength.value} characters`,
+    })
+  if (standards.noSpecialCharacters?.enabled)
+    examples.push({ value: 'my@value!', passes: false, reason: 'Special characters not allowed' })
+  if (standards.prefixRequired?.enabled && standards.prefixRequired?.value)
+    examples.push({
+      value: 'no-prefix-here',
+      passes: false,
+      reason: `Must start with "${standards.prefixRequired.value}"`,
+    })
+  if (standards.noConsecutiveSeparators?.enabled)
+    examples.push({ value: 'my--value', passes: false, reason: 'No consecutive separators' })
+
+  return examples.slice(0, 6)
 }
 
 export default function FormatStandards() {
@@ -172,11 +174,10 @@ export default function FormatStandards() {
   const [standards, setStandards] = useState(currentOrg?.formatStandards || {})
   const [saving, setSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
+  const [testValue, setTestValue] = useState('')
 
   useEffect(() => {
-    if (currentOrg?.formatStandards) {
-      setStandards(currentOrg.formatStandards)
-    }
+    if (currentOrg?.formatStandards) setStandards(currentOrg.formatStandards)
   }, [currentOrg?.formatStandards])
 
   const handleStandardChange = (key, value) => {
@@ -192,7 +193,6 @@ export default function FormatStandards() {
         .update({ format_standards: standards })
         .eq('id', currentOrg.id)
       if (error) throw error
-
       const { data: { user } } = await supabase.auth.getUser()
       await writeAuditLog({
         organizationId: currentOrg.id,
@@ -211,51 +211,115 @@ export default function FormatStandards() {
     }
   }
 
+  const violations = testValue ? validateAgainstFormatStandards(testValue, standards) : []
+  const examples = generateExamples(standards)
+
   return (
-    <div className="space-y-5 max-w-2xl">
-      <div>
-        <h2 className="text-lg font-semibold text-zinc-900">Format Standards</h2>
-        <p className="text-sm text-zinc-500 mt-1">
-          Define naming conventions that apply to all parameter values across your organization.
-        </p>
+    <div className="space-y-4">
+      {/* Page header with Rule Tester button */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-900">Format Standards</h2>
+          <p className="text-sm text-zinc-500 mt-1">
+            Define naming conventions that apply to all parameter values across your organization.
+          </p>
+        </div>
+        <RuleTester />
       </div>
 
       {!isManager && (
         <div className="bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
-          You have read-only access to format standards. Contact an admin or manager to make changes.
+          You have read-only access. Contact an admin or manager to make changes.
         </div>
       )}
 
-      <div className="bg-white border border-zinc-200 p-5">
-        {STANDARDS_CONFIG.map(stdConfig => (
-          <StandardRow
-            key={stdConfig.key}
-            config={stdConfig}
-            value={standards[stdConfig.key] || {}}
-            onChange={val => handleStandardChange(stdConfig.key, val)}
-            canEdit={isManager}
-          />
-        ))}
-      </div>
+      {/* Two-column layout */}
+      <div className="flex gap-6 items-start">
+        {/* Left: toggles */}
+        <div className="flex-1 min-w-0 space-y-4">
+          <div className="bg-white border border-zinc-200 p-5">
+            {STANDARDS_CONFIG.map(stdConfig => (
+              <StandardRow
+                key={stdConfig.key}
+                config={stdConfig}
+                value={standards[stdConfig.key] || {}}
+                onChange={val => handleStandardChange(stdConfig.key, val)}
+                canEdit={isManager}
+              />
+            ))}
+          </div>
 
-      <LivePreview standards={standards} />
-
-      {isManager && (
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-teal-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors"
-          >
-            {saving ? 'Saving…' : 'Save standards'}
-          </button>
-          {saveMessage && (
-            <p className={`text-sm ${saveMessage.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>
-              {saveMessage}
-            </p>
+          {isManager && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-teal-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors"
+              >
+                {saving ? 'Saving…' : 'Save standards'}
+              </button>
+              {saveMessage && (
+                <p className={`text-sm ${saveMessage.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>
+                  {saveMessage}
+                </p>
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        {/* Right: inline rule tester panel */}
+        <div className="w-72 flex-shrink-0 sticky top-6 space-y-4">
+          <div className="bg-white border border-zinc-200 p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-zinc-700">Format Tester</h3>
+
+            {/* Custom test input */}
+            <div>
+              <label className="text-xs text-zinc-500 mb-1 block">Test a value</label>
+              <input
+                type="text"
+                value={testValue}
+                onChange={e => setTestValue(e.target.value)}
+                placeholder="Type any value…"
+                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+              />
+              {testValue && (
+                <div className="mt-2 space-y-1">
+                  {violations.length === 0 ? (
+                    <div className="flex items-center gap-1.5 text-teal-600 text-sm">
+                      <span>✓</span>
+                      <span>Passes all active rules</span>
+                    </div>
+                  ) : (
+                    violations.map((v, i) => (
+                      <div key={i} className="flex items-start gap-1.5 text-red-500 text-xs">
+                        <span className="flex-shrink-0">✗</span>
+                        <span>{v}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Auto-generated examples */}
+            <div>
+              <label className="text-xs text-zinc-500 mb-2 block">Examples</label>
+              <div className="space-y-1.5">
+                {examples.map((ex, i) => (
+                  <div key={i} className="flex items-center justify-between p-2 bg-zinc-50 border border-zinc-100">
+                    <code className="font-mono text-xs text-zinc-700 truncate max-w-[130px]">{ex.value}</code>
+                    {ex.passes ? (
+                      <span className="text-teal-600 text-xs font-medium flex-shrink-0">✓ passes</span>
+                    ) : (
+                      <span className="text-red-500 text-xs flex-shrink-0 ml-1">{ex.reason}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

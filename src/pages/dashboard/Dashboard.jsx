@@ -117,14 +117,12 @@ export default function Dashboard() {
   const chartData = buildChartData(conflicts, events)
   const recent = conflicts.slice(0, 3)
 
-  // Use org-level counts from OrgContext (set during login), fall back to local conflicts
-  const conflictCount = currentOrg?.conflictCount ?? org?.conflictCount ?? conflicts.length
-  const eventCount = currentOrg?.eventCount ?? org?.eventCount ?? 0
-  const rawRate = eventCount > 0 ? conflictCount / eventCount : null
-  const conflictRate = rawRate !== null
-    ? rawRate > 1
-      ? `${rawRate.toFixed(1)}× per event`
-      : `${(rawRate * 100).toFixed(1)}%`
+  // Use org-level counts from OrgContext
+  const conflictCount = currentOrg?.conflictCount ?? conflicts.length
+  const eventCount = currentOrg?.eventCount ?? 0
+  const eventsWithConflicts = currentOrg?.eventsWithConflicts ?? 0
+  const conflictRate = eventCount > 0
+    ? ((eventsWithConflicts / eventCount) * 100).toFixed(1)
     : null
 
   const chartTitle = chartMetric === 'events' ? 'Conflicts & Events per day'
@@ -161,8 +159,9 @@ export default function Dashboard() {
               <p className="text-4xl font-semibold text-zinc-900">{eventCount}</p>
             </div>
             <div className="bg-white border border-zinc-200 p-5">
-              <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Conflict rate</p>
-              <p className="text-4xl font-semibold text-zinc-900">{conflictRate ?? '—'}</p>
+              <p className="text-xs text-zinc-400 uppercase tracking-wide mb-1">Events with conflicts</p>
+              <p className="text-4xl font-semibold text-zinc-900">{conflictRate !== null ? `${conflictRate}%` : '—'}</p>
+              <p className="text-xs text-zinc-400 mt-1">of events had violations</p>
             </div>
           </div>
 

@@ -7,7 +7,7 @@ import { saveConfiguration } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 import Modal from '../../components/ui/Modal'
 import Badge from '../../components/ui/Badge'
-import FormatStandards from './FormatStandards'
+import RuleTester from '../../components/RuleTester'
 
 function Spinner() {
   return (
@@ -61,7 +61,6 @@ export default function MonitorSettings() {
 
   function pathToTab(p) {
     if (p.startsWith('/monitor/issues')) return 'issues'
-    if (p.startsWith('/monitor/standards')) return 'standards'
     if (p.startsWith('/monitor/rules')) return 'rules'
     return 'params'
   }
@@ -202,13 +201,12 @@ export default function MonitorSettings() {
     { key: 'params', label: 'Parameters', href: '/monitor/parameters' },
     { key: 'rules', label: 'Conditional Rules', href: '/monitor/rules' },
     { key: 'issues', label: 'Rule Issues', href: '/monitor/issues' },
-    { key: 'standards', label: 'Format Standards', href: '/monitor/standards' },
   ]
 
   return (
     <div className="space-y-4">
-      {/* Pill toggle + action button */}
-      <div className="flex items-center justify-between">
+      {/* Tabs + action buttons */}
+      <div className="flex items-center justify-between gap-3">
         <div className="inline-flex bg-zinc-100 rounded-full p-1">
           {tabs.map(({ key, label }) => (
             <button
@@ -227,22 +225,24 @@ export default function MonitorSettings() {
             </button>
           ))}
         </div>
-        {activeTab === 'params' ? (
-          <button
-            onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-1.5 bg-teal-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-teal-700 transition-colors"
-          >
-            <PlusIcon className="h-4 w-4" /> Add parameter
-          </button>
-        ) : activeTab === 'rules' ? (
-          <button
-            onClick={() => navigate('/monitor/rules/new')}
-            className="inline-flex items-center gap-1.5 bg-teal-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-teal-700 transition-colors"
-          >
-            <PlusIcon className="h-4 w-4" /> Create rule
-          </button>
-        ) : null}
-
+        <div className="flex items-center gap-2">
+          <RuleTester />
+          {activeTab === 'params' ? (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="inline-flex items-center gap-1.5 bg-teal-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-teal-700 transition-colors"
+            >
+              <PlusIcon className="h-4 w-4" /> Add parameter
+            </button>
+          ) : activeTab === 'rules' ? (
+            <button
+              onClick={() => navigate('/monitor/rules/new')}
+              className="inline-flex items-center gap-1.5 bg-teal-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-teal-700 transition-colors"
+            >
+              <PlusIcon className="h-4 w-4" /> Create rule
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Parameters tab */}
@@ -492,9 +492,6 @@ export default function MonitorSettings() {
           )}
         </div>
       )}
-
-      {/* Format Standards tab */}
-      {activeTab === 'standards' && <FormatStandards />}
 
       {/* Add parameter modal */}
       <Modal open={showAdd} onClose={() => { setShowAdd(false); setNewParamName(''); setAddError('') }} title="Add parameter">

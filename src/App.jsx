@@ -11,14 +11,14 @@ import ParameterList from './pages/monitor/ParameterList'
 import ParameterEditor from './pages/monitor/ParameterEditor'
 import ConditionalRuleEditor from './pages/monitor/ConditionalRuleEditor'
 import ConditionalRuleView from './pages/monitor/ConditionalRuleView'
+import FormatStandards from './pages/monitor/FormatStandards'
 import ConflictLog from './pages/conflicts/ConflictLog'
 import OrganizationSettings from './pages/settings/OrganizationSettings'
 import TeamMembers from './pages/settings/TeamMembers'
 import UserManagement from './pages/settings/UserManagement'
 import UserProfile from './pages/settings/UserProfile'
 import AuditLog from './pages/settings/AuditLog'
-import ApiKeys from './pages/settings/ApiKeys'
-import Domains from './pages/settings/Domains'
+import DataCollection from './pages/settings/DataCollection'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -42,6 +42,8 @@ function AppRoutes() {
       }>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
+
+        {/* Monitor */}
         <Route path="monitor/parameters" element={<ParameterList />} />
         <Route path="monitor/parameters/:paramName" element={<ParameterEditor />} />
         <Route path="monitor/rules" element={<ParameterList />} />
@@ -49,15 +51,23 @@ function AppRoutes() {
         <Route path="monitor/rules/:ruleId/edit" element={<ConditionalRuleEditor />} />
         <Route path="monitor/rules/:ruleId" element={<ConditionalRuleView />} />
         <Route path="monitor/issues" element={<ParameterList />} />
-        <Route path="monitor/standards" element={<ParameterList />} />
+        <Route path="monitor/format-standards" element={<FormatStandards />} />
+        {/* Legacy redirects */}
+        <Route path="monitor/standards" element={<Navigate to="/monitor/format-standards" replace />} />
+
+        {/* Conflicts */}
         <Route path="conflicts" element={<ConflictLog />} />
+
+        {/* Settings */}
         <Route path="settings/organization" element={<OrganizationSettings />} />
         <Route path="settings/team" element={<TeamMembers />} />
         <Route path="settings/user-management" element={<UserManagement />} />
         <Route path="settings/profile" element={<UserProfile />} />
         <Route path="settings/audit-log" element={<AuditLog />} />
-        <Route path="settings/api-keys" element={<ApiKeys />} />
-        <Route path="settings/domains" element={<Domains />} />
+        <Route path="settings/data-collection" element={<DataCollection />} />
+        {/* Legacy redirects */}
+        <Route path="settings/domains" element={<Navigate to="/settings/data-collection" replace />} />
+        <Route path="settings/api-keys" element={<Navigate to="/settings/data-collection" replace />} />
       </Route>
     </Routes>
   )

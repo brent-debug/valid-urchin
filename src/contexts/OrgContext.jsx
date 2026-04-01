@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { db } from '../lib/firebase'
-import { collection, query, where, getCountFromServer } from 'firebase/firestore'
+import { collection, query, where, getCountFromServer, getDocs } from 'firebase/firestore'
 
 const OrgContext = createContext(null)
 
@@ -49,11 +49,22 @@ export function OrgProvider({ children }) {
                 where('receivedAt', '>=', periodStart.toISOString()))
         )
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        const conflictsSnap = await getCountFromServer(
+        // Fetch conflict docs to count unique source events
+        const conflictDocs = await getDocs(
           query(collection(db, `organizations/${orgData.firestore_api_key}/conflicts`),
                 where('validationTimestamp', '>=', thirtyDaysAgo.toISOString()))
         )
-        setOrg(prev => ({ ...prev, eventCount: eventsSnap.data().count, conflictCount: conflictsSnap.data().count }))
+        const uniqueEventPaths = new Set()
+        conflictDocs.forEach(doc => {
+          const data = doc.data()
+          if (data.documentPath) uniqueEventPaths.add(data.documentPath)
+        })
+        setOrg(prev => ({
+          ...prev,
+          eventCount: eventsSnap.data().count,
+          conflictCount: conflictDocs.size,
+          eventsWithConflicts: uniqueEventPaths.size,
+        }))
       } catch (e) {
         console.warn('Count query failed:', e)
       }
@@ -62,7 +73,7 @@ export function OrgProvider({ children }) {
       try {
         const { data: extraData } = await supabase
           .from('organizations')
-          .select('format_standards, conflict_threshold, timezone')
+          .select('format_standards, conflict_threshold, timezone, trigger_parameters')
           .eq('id', orgData.id)
           .single()
 
@@ -70,7 +81,8 @@ export function OrgProvider({ children }) {
           ...prev,
           formatStandards: extraData?.format_standards || {},
           conflictThreshold: extraData?.conflict_threshold || 1,
-          timezone: extraData?.timezone || 'America/New_York'
+          timezone: extraData?.timezone || 'America/New_York',
+          triggerParameters: extraData?.trigger_parameters || ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'],
         }))
 
         // Fetch conflict resolution rules
