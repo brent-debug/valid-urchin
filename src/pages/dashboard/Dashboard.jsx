@@ -36,20 +36,36 @@ function formatTime(raw) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function groupByDay(conflicts) {
-  const days = {}
+function buildChartData(conflicts, events) {
+  const conflictDays = {}
   conflicts.forEach(c => {
-    const ts = c.validationTimestamp?.toDate?.() || new Date()
+    const raw = c.validationTimestamp
+    const ts = raw?.toDate?.() ?? (raw ? new Date(raw) : null)
+    if (!ts || isNaN(ts)) return
     const key = ts.toISOString().slice(0, 10)
-    days[key] = (days[key] || 0) + 1
+    conflictDays[key] = (conflictDays[key] || 0) + 1
   })
+
+  const eventDays = {}
+  events.forEach(e => {
+    const raw = e.receivedAt
+    if (!raw) return
+    const ts = new Date(raw)
+    if (isNaN(ts)) return
+    const key = ts.toISOString().slice(0, 10)
+    eventDays[key] = (eventDays[key] || 0) + 1
+  })
+
   const result = []
   for (let i = 11; i >= 0; i--) {
     const d = new Date()
     d.setDate(d.getDate() - i)
     const key = d.toISOString().slice(0, 10)
     const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    result.push({ key, label, count: days[key] || 0, eventCount: 0, errorRate: null })
+    const count = conflictDays[key] || 0
+    const eventCount = eventDays[key] || 0
+    const errorRate = eventCount > 0 ? parseFloat(((count / eventCount) * 100).toFixed(1)) : null
+    result.push({ key, label, count, eventCount, errorRate })
   }
   return result
 }
@@ -60,6 +76,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [tab, setTab] = useState('conflicts')
   const [conflicts, setConflicts] = useState([])
+  const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [chartMetric, setChartMetric] = useState(null) // null | 'events' | 'errorRate'
 
@@ -67,13 +84,24 @@ export default function Dashboard() {
     if (!apiKey) return
     async function load() {
       try {
-        const q = query(
+        // Fetch conflicts (last 12 days, ordered)
+        const conflictsSnap = await getDocs(query(
           collection(db, `organizations/${apiKey}/conflicts`),
           orderBy('validationTimestamp', 'desc'),
           limit(100)
+        ))
+        setConflicts(conflictsSnap.docs.map(d => ({ id: d.id, ...d.data() })))
+
+        // Fetch events for the last 12 days (no orderBy to avoid index requirement)
+        const twelveDAgo = new Date()
+        twelveDAgo.setDate(twelveDAgo.getDate() - 12)
+        const eventsSnap = await getDocs(
+          collection(db, `organizations/${apiKey}/utm_events`)
         )
-        const snap = await getDocs(q)
-        setConflicts(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        const recentEvents = eventsSnap.docs
+          .map(d => d.data())
+          .filter(e => e.receivedAt && new Date(e.receivedAt) >= twelveDAgo)
+        setEvents(recentEvents)
       } catch (err) {
         console.error('Dashboard load error:', err)
       } finally {
@@ -86,7 +114,7 @@ export default function Dashboard() {
   if (orgLoading) return <Spinner />
   if (!currentOrg) return null
 
-  const chartData = groupByDay(conflicts)
+  const chartData = buildChartData(conflicts, events)
   const recent = conflicts.slice(0, 3)
 
   // Use org-level counts from OrgContext (set during login), fall back to local conflicts
