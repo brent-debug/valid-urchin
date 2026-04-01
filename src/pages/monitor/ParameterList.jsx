@@ -59,9 +59,6 @@ export default function MonitorSettings() {
   const { currentOrg, loading: orgLoading } = useOrg()
 
   const tab = location.pathname.startsWith('/monitor/rules') ? 'rules' : 'params'
-  // Check if we should show issues tab
-  const isIssuesTab = location.search?.includes('tab=issues') || location.hash === '#issues'
-
   const [activeTab, setActiveTab] = useState(tab === 'rules' && location.search?.includes('tab=issues') ? 'issues' : tab)
 
   const [showAdd, setShowAdd] = useState(false)
@@ -250,11 +247,11 @@ export default function MonitorSettings() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-100">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide w-10">Toggle</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Parameter</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Allowed values</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">In rules</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Applied domains</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide w-10">Status</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Last modified</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Actions</th>
               </tr>
@@ -276,12 +273,6 @@ export default function MonitorSettings() {
                       onClick={() => navigate(`/monitor/parameters/${name}`)}
                       className="border-b border-zinc-50 hover:bg-zinc-50 cursor-pointer"
                     >
-                      <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
-                        <Toggle
-                          checked={isActive}
-                          onChange={() => handleToggleParam(name, data)}
-                        />
-                      </td>
                       <td className="px-5 py-3">
                         <span className="font-mono font-medium text-zinc-900 text-sm">{name}</span>
                       </td>
@@ -315,6 +306,12 @@ export default function MonitorSettings() {
                             ))}
                           </div>
                         )}
+                      </td>
+                      <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
+                        <Toggle
+                          checked={isActive}
+                          onChange={() => handleToggleParam(name, data)}
+                        />
                       </td>
                       <td className="px-5 py-3">
                         <p className="text-sm text-zinc-400">{fmtDate(data.lastModified || data.updated || data.created)}</p>
@@ -355,11 +352,11 @@ export default function MonitorSettings() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-100">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide w-10">Toggle</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Rule name</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Anchor(s)</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Conditionals</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Applied domains</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide w-10">Status</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Last modified</th>
                 <th className="text-right px-5 py-3 text-xs font-semibold text-zinc-400 uppercase tracking-wide">Actions</th>
               </tr>
@@ -377,12 +374,6 @@ export default function MonitorSettings() {
                       onClick={() => navigate(`/monitor/rules/${rule.id}`)}
                       className="border-b border-zinc-50 hover:bg-zinc-50 cursor-pointer"
                     >
-                      <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
-                        <Toggle
-                          checked={!!rule.active}
-                          onChange={() => handleToggleRule(rule.id, rule.active)}
-                        />
-                      </td>
                       <td className="px-5 py-3 text-sm font-medium text-zinc-900">
                         {rule.name || `Rule ${rule.id?.slice(0, 6)}`}
                       </td>
@@ -402,6 +393,12 @@ export default function MonitorSettings() {
                             ))}
                           </div>
                         )}
+                      </td>
+                      <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
+                        <Toggle
+                          checked={!!rule.active}
+                          onChange={() => handleToggleRule(rule.id, rule.active)}
+                        />
                       </td>
                       <td className="px-5 py-3">
                         <p className="text-sm text-zinc-400">{fmtDate(rule.lastModified || rule.updatedAt)}</p>
