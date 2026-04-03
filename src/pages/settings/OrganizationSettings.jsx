@@ -224,19 +224,33 @@ export default function OrganizationSettings() {
           <label className="block text-sm font-medium text-zinc-700 mb-1">
             Minimum occurrences to surface a conflict
           </label>
-          <p className="text-xs text-zinc-400 mb-2">Conflicts must occur at least this many times before appearing in the conflict log.</p>
-          <select
-            value={conflictThreshold}
-            onChange={e => setConflictThreshold(parseInt(e.target.value))}
-            className="px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-          >
-            <option value={1}>1 (show all)</option>
-            <option value={2}>2</option>
-            <option value={3}>3</option>
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-          </select>
+          <p className="text-xs text-zinc-400 mb-3">
+            Conflicts must reach this threshold before appearing in your conflict log.
+            Helps filter out bots and one-off errors.
+          </p>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min={1}
+              max={100}
+              value={conflictThreshold}
+              onChange={e => setConflictThreshold(parseInt(e.target.value))}
+              className="flex-1 accent-teal-600"
+            />
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={conflictThreshold}
+              onChange={e => setConflictThreshold(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
+              className="w-14 text-center px-2 py-1 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+            />
+          </div>
+          <div className="flex justify-between text-xs text-zinc-400 mt-1">
+            <span>1 — show all</span>
+            <span>50 — high traffic filter</span>
+            <span>100 — strict</span>
+          </div>
         </div>
         {thresholdMessage && <p className={`text-sm ${thresholdMessage.startsWith('Error') ? 'text-red-600' : 'text-emerald-600'}`}>{thresholdMessage}</p>}
         <button

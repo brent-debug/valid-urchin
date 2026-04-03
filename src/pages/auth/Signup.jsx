@@ -5,9 +5,11 @@ import Button from '../../components/ui/Button'
 
 export default function Signup() {
   const navigate = useNavigate()
+  const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [orgName, setOrgName] = useState('')
+  const [domain, setDomain] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -24,7 +26,7 @@ export default function Signup() {
       })
       if (authError) throw authError
 
-      // 2. Set the session explicitly so the Edge Function call is authenticated
+      // 2. Set session explicitly so subsequent calls are authenticated
       if (authData.session) {
         await supabase.auth.setSession({
           access_token: authData.session.access_token,
@@ -32,17 +34,24 @@ export default function Signup() {
         })
       }
 
-      // 3. Call Edge Function
-      const { data, error } = await supabase.functions.invoke('create-organization', {
-        body: {
-          userId: authData.user.id,
-          orgName,
-        }
+      // 3. Create user profile with name
+      await supabase.from('user_profiles').insert({
+        id: authData.user.id,
+        full_name: fullName,
       })
 
-      if (error) throw new Error(error.message)
+      // 4. Call Edge Function to create org + member + default config
+      const { error: fnError } = await supabase.functions.invoke('create-organization', {
+        body: {
+          userId: authData.user.id,
+          userEmail: email,
+          orgName,
+          domain: domain || null,
+          userName: fullName,
+        }
+      })
+      if (fnError) throw new Error(fnError.message)
 
-      // 4. Navigate to dashboard
       navigate('/')
 
     } catch (err) {
@@ -67,14 +76,14 @@ export default function Signup() {
               <div className="p-3 bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
             )}
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Organization name</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Your name</label>
               <input
                 type="text"
-                value={orgName}
-                onChange={e => setOrgName(e.target.value)}
+                value={fullName}
+                onChange={e => setFullName(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
-                placeholder="Acme Corp"
+                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                placeholder="Jane Smith"
               />
             </div>
             <div>
@@ -84,8 +93,8 @@ export default function Signup() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
-                placeholder="you@company.com"
+                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                placeholder="jane@company.com"
               />
             </div>
             <div>
@@ -95,10 +104,34 @@ export default function Signup() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                minLength={6}
-                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent"
-                placeholder="Min. 6 characters"
+                minLength={8}
+                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                placeholder="Min. 8 characters"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Organization name</label>
+              <input
+                type="text"
+                value={orgName}
+                onChange={e => setOrgName(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                placeholder="Acme Inc."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Your website domain</label>
+              <input
+                type="text"
+                value={domain}
+                onChange={e => setDomain(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
+                placeholder="example.com"
+              />
+              <p className="text-xs text-zinc-400 mt-1">
+                Added as your first allowed domain. You can add more later.
+              </p>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Creating account…' : 'Create account'}
@@ -108,7 +141,7 @@ export default function Signup() {
 
         <p className="text-center text-sm text-zinc-500 mt-4">
           Already have an account?{' '}
-          <Link to="/login" className="text-primary-600 font-medium hover:text-primary-700">Sign in</Link>
+          <Link to="/login" className="text-teal-600 font-medium hover:text-teal-700">Sign in</Link>
         </p>
       </div>
     </div>

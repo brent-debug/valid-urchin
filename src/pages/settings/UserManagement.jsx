@@ -67,7 +67,7 @@ export default function UserManagement() {
   async function loadMembers() {
     const { data } = await supabase
       .from('organization_members')
-      .select('user_id, role, created_at, last_login_at, invitations(email)')
+      .select('user_id, role, email, created_at, last_login_at, user_profiles(full_name)')
       .eq('organization_id', currentOrg.id)
     setMembers(data || [])
   }
@@ -235,7 +235,8 @@ export default function UserManagement() {
               </tr>
             ) : (
               sortedMembers.map(member => {
-                const email = member.invitations?.email || member.user_id
+                const displayName = member.user_profiles?.full_name || member.email || member.user_id
+                const email = member.email || member.user_id
                 const isCurrentUser = member.user_id === user?.id
                 const badgeVariant = ROLE_BADGE_VARIANT[member.role] || 'member'
                 return (
@@ -244,7 +245,10 @@ export default function UserManagement() {
                       <div className="flex items-center gap-3">
                         <Avatar email={email} />
                         <div>
-                          <p className="text-sm text-zinc-900">{email}</p>
+                          {member.user_profiles?.full_name && (
+                            <p className="text-sm font-medium text-zinc-900">{member.user_profiles.full_name}</p>
+                          )}
+                          <p className={`text-sm ${member.user_profiles?.full_name ? 'text-zinc-400 text-xs' : 'text-zinc-900'}`}>{email}</p>
                         </div>
                         {isCurrentUser && (
                           <span className="bg-zinc-100 text-zinc-500 text-xs rounded-full px-2 py-0.5">You</span>

@@ -65,7 +65,6 @@ export default function UserProfile() {
           id: user.id,
           organization_id: currentOrg.id,
           full_name: fullName,
-          updated_at: new Date().toISOString(),
         })
       if (error) throw error
       setSaveMessage('Saved successfully.')
@@ -94,7 +93,6 @@ export default function UserProfile() {
           organization_id: currentOrg.id,
           full_name: fullName,
           notification_preferences,
-          updated_at: new Date().toISOString(),
         })
       if (error) throw error
       setNotifMessage('Preferences saved.')

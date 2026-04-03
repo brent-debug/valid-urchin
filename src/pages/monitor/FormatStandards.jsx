@@ -10,7 +10,13 @@ const STANDARDS_CONFIG = [
   {
     key: 'noSpaces',
     label: 'No spaces',
-    description: 'Values must not contain spaces.',
+    description: 'Values must not contain spaces (including %20 and +).',
+    type: 'toggle',
+  },
+  {
+    key: 'noUrlEncoding',
+    label: 'No URL encoding',
+    description: 'Values must not contain URL-encoded characters like %20 or %2B.',
     type: 'toggle',
   },
   {

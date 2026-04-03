@@ -2,8 +2,15 @@ export function validateAgainstFormatStandards(value, standards) {
   const violations = []
   if (!standards || Object.keys(standards).length === 0) return violations
 
-  if (standards.noSpaces?.enabled && value.includes(' '))
-    violations.push('No spaces allowed')
+  if (standards.noSpaces?.enabled) {
+    if (value.includes(' ') || value.includes('%20') || value.includes('+'))
+      violations.push('No spaces allowed (found space or %20)')
+  }
+
+  if (standards.noUrlEncoding?.enabled) {
+    if (/%[0-9A-Fa-f]{2}/.test(value))
+      violations.push('URL-encoded characters not allowed (e.g. %20, %2B)')
+  }
 
   if (standards.wordSeparator?.enabled) {
     const sep = standards.wordSeparator.value
