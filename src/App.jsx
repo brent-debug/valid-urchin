@@ -12,6 +12,8 @@ import ParameterEditor from './pages/monitor/ParameterEditor'
 import ConditionalRuleEditor from './pages/monitor/ConditionalRuleEditor'
 import ConditionalRuleView from './pages/monitor/ConditionalRuleView'
 import FormatStandards from './pages/monitor/FormatStandards'
+import ChannelTemplates from './pages/monitor/ChannelTemplates'
+import ValueRequests from './pages/monitor/ValueRequests'
 import ConflictLog from './pages/conflicts/ConflictLog'
 import OrganizationSettings from './pages/settings/OrganizationSettings'
 import TeamMembers from './pages/settings/TeamMembers'
@@ -20,6 +22,10 @@ import UserProfile from './pages/settings/UserProfile'
 import AuditLog from './pages/settings/AuditLog'
 import DataCollection from './pages/settings/DataCollection'
 import Help from './pages/Help'
+import CampaignList from './pages/campaigns/CampaignList'
+import CampaignEditor from './pages/campaigns/CampaignEditor'
+import CampaignDetail from './pages/campaigns/CampaignDetail'
+import UrlBuilder from './pages/campaigns/UrlBuilder'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -53,11 +59,21 @@ function AppRoutes() {
         <Route path="monitor/rules/:ruleId" element={<ConditionalRuleView />} />
         <Route path="monitor/issues" element={<ParameterList />} />
         <Route path="monitor/format-standards" element={<FormatStandards />} />
+        <Route path="monitor/channel-templates" element={<ChannelTemplates />} />
+        <Route path="monitor/value-requests" element={<ValueRequests />} />
         {/* Legacy redirects */}
         <Route path="monitor/standards" element={<Navigate to="/monitor/format-standards" replace />} />
 
         {/* Conflicts */}
         <Route path="conflicts" element={<ConflictLog />} />
+
+        {/* Campaigns */}
+        <Route path="campaigns" element={<CampaignList />} />
+        <Route path="campaigns/new" element={<CampaignEditor />} />
+        <Route path="campaigns/:campaignId" element={<CampaignDetail />} />
+        <Route path="campaigns/:campaignId/edit" element={<CampaignEditor />} />
+        <Route path="campaigns/:campaignId/channels/:channelId/urls/new" element={<UrlBuilder />} />
+        <Route path="campaigns/:campaignId/channels/:channelId/urls/:urlId/edit" element={<UrlBuilder />} />
 
         {/* Settings */}
         <Route path="settings/organization" element={<OrganizationSettings />} />
@@ -66,6 +82,7 @@ function AppRoutes() {
         <Route path="settings/profile" element={<UserProfile />} />
         <Route path="settings/audit-log" element={<AuditLog />} />
         <Route path="settings/data-collection" element={<DataCollection />} />
+
         {/* Help */}
         <Route path="help" element={<Help />} />
 

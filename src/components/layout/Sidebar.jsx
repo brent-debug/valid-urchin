@@ -22,6 +22,7 @@ export default function Sidebar({ onClose }) {
   const { currentOrg } = useOrg()
   const { isAdmin, isManager } = usePermissions()
   const [domainsUsed, setDomainsUsed] = useState(0)
+  const [pendingValueRequests, setPendingValueRequests] = useState(0)
 
   useEffect(() => {
     if (!currentOrg?.id) return
@@ -32,6 +33,16 @@ export default function Sidebar({ onClose }) {
       .then(({ count }) => setDomainsUsed(count || 0))
   }, [currentOrg?.id])
 
+  useEffect(() => {
+    if (!currentOrg?.id || !(isAdmin || isManager)) return
+    supabase
+      .from('value_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', currentOrg.id)
+      .eq('status', 'pending')
+      .then(({ count }) => setPendingValueRequests(count || 0))
+  }, [currentOrg?.id, isAdmin, isManager])
+
   const plan = currentOrg?.plan || 'free'
   const eventsUsed = currentOrg?.events_this_period || 0
   const eventLimit = getEventLimit(plan)
@@ -41,6 +52,8 @@ export default function Sidebar({ onClose }) {
     { name: 'Parameters', href: '/monitor/parameters' },
     { name: 'Conditional Rules', href: '/monitor/rules' },
     { name: 'Format Standards', href: '/monitor/format-standards' },
+    { name: 'Channel Templates', href: '/monitor/channel-templates' },
+    { name: 'Value Requests', href: '/monitor/value-requests', badge: (isAdmin || isManager) ? pendingValueRequests : 0 },
   ]
 
   const settingsNav = [
@@ -105,7 +118,12 @@ export default function Sidebar({ onClose }) {
               {monitorSubNav.map(item => (
                 <li key={item.name}>
                   <NavLink to={item.href} className={subLinkClass(item.href)}>
-                    {item.name}
+                    <span className="flex-1">{item.name}</span>
+                    {item.badge > 0 && (
+                      <span className="ml-auto bg-amber-100 text-amber-700 text-xs font-semibold px-1.5 py-0.5 rounded-full">
+                        {item.badge}
+                      </span>
+                    )}
                   </NavLink>
                 </li>
               ))}
@@ -120,13 +138,12 @@ export default function Sidebar({ onClose }) {
             </NavLink>
           </li>
 
-          {/* Campaign Manager — disabled */}
+          {/* Campaign Manager */}
           <li>
-            <div className="flex items-center gap-3 px-3 py-2 text-sm text-zinc-400 opacity-50 cursor-not-allowed select-none">
+            <NavLink to="/campaigns" className={topLinkClass('/campaigns', '/campaigns')}>
               <MegaphoneIcon className="h-4 w-4 flex-shrink-0" />
               <span>Campaign Manager</span>
-              <span className="ml-auto text-xs bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full">Soon</span>
-            </div>
+            </NavLink>
           </li>
         </ul>
 
